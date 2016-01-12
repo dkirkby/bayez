@@ -20,6 +20,10 @@ import desisim.pixelsplines
 
 import desimodel.io
 
+import astropy.constants
+import astropy.units as u
+CLIGHT_KM_S = astropy.constants.c.to(u.km / u.s).value
+
 
 class TemplateSampler(object):
     """Generic support for sampling spectroscopic templates.
@@ -52,7 +56,8 @@ class TemplateSampler(object):
         self.spectra = np.copy(self.spectra[:, start:stop])
 
     def resample_flux(self, wave, flux):
-        """Linearly interpolate the input spectrum to our observed wavelength grid.
+        """
+        Linearly interpolate the input spectrum to our observed wavelength grid.
         """
         interpolator = scipy.interpolate.interp1d(
             wave, flux, copy=False, assume_sorted=True, kind='linear')
@@ -60,7 +65,11 @@ class TemplateSampler(object):
 
     def plot_samples(self, num_samples=3, seed=None):
         """Plot some sample templates.
+
+        This method requires that matplotlib is installed.
         """
+        import matplotlib.pyplot as plt
+
         gen = np.random.RandomState(seed)
         plt.figure(figsize=(10, 4))
         for i in xrange(num_samples):
@@ -104,7 +113,8 @@ class QSOSampler(TemplateSampler):
         gfilter = desisim.filterfunc.filterfunc(filtername='decam_g.txt')
         self.gband = np.empty_like(self.template_z)
         for i, spectrum in enumerate(self.spectra):
-            self.gband[i] = -2.5 * (np.log10(gfilter.get_maggies(self.wave, spectrum)) - 17.)
+            self.gband[i] = -2.5 * (np.log10(
+                gfilter.get_maggies(self.wave, spectrum)) - 17.)
 
     def sample(self, generator=None):
         if generator is None:
@@ -153,9 +163,12 @@ class LRGSampler(TemplateSampler):
         for iz, z in enumerate(self.z_grid):
             wave = self.wave * (1 + z)
             for jt, spectrum in enumerate(self.spectra):
-                self.zband[jt, iz] = -2.5 * (np.log10(zfilter.get_maggies(wave, spectrum)) - 17.)
-                rband[jt, iz] = -2.5 * (np.log10(rfilter.get_maggies(wave, spectrum)) - 17.)
-                W1band[jt, iz] = -2.5 * (np.log10(W1filter.get_maggies(wave, spectrum)) - 17.)
+                self.zband[jt, iz] = -2.5 * (np.log10(
+                    zfilter.get_maggies(wave, spectrum)) - 17.)
+                rband[jt, iz] = -2.5 * (np.log10(
+                    rfilter.get_maggies(wave, spectrum)) - 17.)
+                W1band[jt, iz] = -2.5 * (np.log10(
+                    W1filter.get_maggies(wave, spectrum)) - 17.)
         # Apply color-color cuts
         self.rz_color = rband - self.zband
         self.rW1_color = rband - W1band
@@ -171,13 +184,16 @@ class LRGSampler(TemplateSampler):
         self.trim_templates()
         # Calculate pixel boundaries to initialize Doppler broadening.
         pixbound = desisim.pixelsplines.cen2bound(self.wave)
-        # Use a small set of fixed stellar velocity dispersions that sample a Gaussian in log10(vdisp).
-        vdisp_values = 10 ** subdivide_normal(num_vdisp, log10_vdisp_mean, log10_vdisp_rms)
+        # Use a small set of fixed stellar velocity dispersions that sample a
+        # Gaussian in log10(vdisp).
+        vdisp_values = 10 ** subdivide_normal(
+            num_vdisp, log10_vdisp_mean, log10_vdisp_rms)
         print 'Using stellar velocity dispersions: {} km/s'.format(vdisp_values)
         self.blur_matrices = []
         for vdisp in vdisp_values:
             sigma = 1.0 + self.wave * vdisp / CLIGHT_KM_S
-            self.blur_matrices.append(desisim.pixelsplines.gauss_blur_matrix(pixbound, sigma))
+            self.blur_matrices.append(
+                desisim.pixelsplines.gauss_blur_matrix(pixbound, sigma))
 
     def sample(self, generator=None):
         if generator is None:
@@ -193,7 +209,8 @@ class LRGSampler(TemplateSampler):
             selected = self.sel_color[t_index, z_index] & (zmag <= zmag_max)
 
         # Randomize the redshift uniformly within this bin.
-        z = generator.uniform(self.z_bin_edges[z_index], self.z_bin_edges[z_index + 1])
+        z = generator.uniform(self.z_bin_edges[z_index],
+                              self.z_bin_edges[z_index + 1])
 
         # Calculate the magnitude normalization factor.
         znorm = 10**(-0.4 * (zmag - self.zband[t_index, z_index]))
@@ -238,9 +255,12 @@ class ELGSampler(TemplateSampler):
         for iz, z in enumerate(self.z_grid):
             wave = self.wave * (1 + z)
             for jt, spectrum in enumerate(self.spectra):
-                self.rband[jt, iz] = -2.5 * (np.log10(rfilter.get_maggies(wave, spectrum)) - 17.)
-                gband[jt, iz] = -2.5 * (np.log10(gfilter.get_maggies(wave, spectrum)) - 17.)
-                zband[jt, iz] = -2.5 * (np.log10(zfilter.get_maggies(wave, spectrum)) - 17.)
+                self.rband[jt, iz] = -2.5 * (np.log10(
+                    rfilter.get_maggies(wave, spectrum)) - 17.)
+                gband[jt, iz] = -2.5 * (np.log10(
+                    gfilter.get_maggies(wave, spectrum)) - 17.)
+                zband[jt, iz] = -2.5 * (np.log10(
+                    zfilter.get_maggies(wave, spectrum)) - 17.)
 
         # Trim spectra after calculating magnitudes.
         self.trim_templates()
@@ -249,12 +269,14 @@ class ELGSampler(TemplateSampler):
         self.rz_color = self.rband - zband
         self.gr_color = gband - self.rband
         self.sel_color = ((self.rz_color >= 0.3) & (self.rz_color <= 1.5) &
-                          (self.gr_color + 0.2 < self.rz_color) & (self.rz_color < 1.2 - self.gr_color))
+                          (self.gr_color + 0.2 < self.rz_color) &
+                          (self.rz_color < 1.2 - self.gr_color))
         allowed = np.sum(self.sel_color, axis=-1)
         print '{} templates pass color-color cuts.'.format(np.count_nonzero(allowed))
 
         # Calculate maximum allowed rband magnitude to pass OII min flux cut.
-        self.rmax_oii = self.rband + 2.5 * np.log10(self.oiiflux[:, np.newaxis] / foii_min)
+        self.rmax_oii = self.rband + 2.5 * np.log10(
+            self.oiiflux[:, np.newaxis] / foii_min)
         self.sel_oii = self.rmax_oii > self.mag_max
         allowed = np.sum(self.sel_oii, axis=-1)
         print '{} templates pass OII flux cut.'.format(np.count_nonzero(allowed))
