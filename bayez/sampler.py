@@ -23,8 +23,6 @@ import desimodel.io
 
 import astropy.constants
 import astropy.units as u
-CLIGHT_KM_S = astropy.constants.c.to(u.km / u.s).value
-
 
 class TemplateSampler(object):
     """Generic support for sampling spectroscopic templates.
@@ -199,6 +197,7 @@ class LRGSampler(TemplateSampler):
         print('Using stellar velocity dispersions: {} km/s'
             .format(vdisp_values))
         self.blur_matrices = []
+        CLIGHT_KM_S = astropy.constants.c.to(u.km / u.s).value
         for vdisp in vdisp_values:
             sigma = 1.0 + self.wave * vdisp / CLIGHT_KM_S
             self.blur_matrices.append(
@@ -325,3 +324,9 @@ class ELGSampler(TemplateSampler):
         mag_pdf /= np.sum(mag_pdf)
 
         return flux, mag_pdf, z, rmag, t_index
+
+Samplers = {
+    'qso': QSOSampler,
+    'lrg': LRGSampler,
+    'elg': ELGSampler,
+}

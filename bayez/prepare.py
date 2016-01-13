@@ -17,12 +17,6 @@ from astropy.utils.compat import argparse
 
 import bayez
 
-Samplers = {
-    'qso': bayez.sampler.QSOSampler,
-    'lrg': bayez.sampler.LRGSampler,
-    'elg': bayez.sampler.ELGSampler,
-}
-
 def prepare(args=None):
     # parse command-line arguments
     parser = argparse.ArgumentParser(
@@ -44,9 +38,13 @@ def prepare(args=None):
     if args.classname is None:
         print('You must specify a spectral class.')
         return -1
-    sampler = Samplers[args.classname]()
+    sampler = bayez.sampler.Samplers[args.classname]()
     if args.verbose:
         sampler.print_summary()
+
+    if args.seed is None:
+        print('You must specify a seed to use.')
+        return -1
 
     simulator = bayez.simulation.Simulator(
         analysis_downsampling=args.downsampling, verbose=args.verbose)

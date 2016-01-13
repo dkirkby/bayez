@@ -154,7 +154,7 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
             dz_avg=estimator.z_mean - true_z
         ))
 
-        if (i + 1) % print_interval == 0:
+        if print_interval and (i + 1) % print_interval == 0:
             print('[{}] mag = {:.2f}, z = {:.2f}, dz = {:+.04f}, {:+.04f}'
                 .format(*results[i]))
 
