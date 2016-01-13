@@ -24,7 +24,7 @@ class Simulator(object):
     """
 
     def __init__(self, wavestep=0.2, instrument_downsampling=5,
-                 analysis_downsampling=4):
+                 analysis_downsampling=4, verbose=True):
         self.instrument_downsampling = instrument_downsampling
         self.analysis_downsampling = analysis_downsampling
         atmosphere = specsim.atmosphere.Atmosphere(
@@ -35,10 +35,13 @@ class Simulator(object):
         # pixel grid matches the data challenge simulation pixel grid.
         desiparams = desimodel.io.load_desiparams()
         self.exptime = desiparams['exptime']
+        if verbose:
+            print('Exposure time is {}s.'.format(self.exptime))
         wavemin = desimodel.io.load_throughput('b').wavemin
         wavemax = desimodel.io.load_throughput('z').wavemax
         self.qsim.setWavelengthGrid(wavemin, wavemax, wavestep)
-        print('Simulation wavelength grid: ', self.qsim.wavelengthGrid)
+        if verbose:
+            print('Simulation wavelength grid: ', self.qsim.wavelengthGrid)
         self.fluxunits = specsim.spectrum.SpectralFluxDensity.fiducialFluxUnit
         self.ranges = []
         self.num_analysis_pixels = 0
@@ -52,8 +55,9 @@ class Simulator(object):
             assert ((resolution_limits[0] < throughput_limits[0]) &
                     (resolution_limits[1] > throughput_limits[1])), \
                     'Unable to set band range.'
-            print('Band {}: simulation pixel limits are {}, {}.'.format(
-                band, throughput_limits[0], throughput_limits[1]))
+            if verbose:
+                print('Band {}: simulation pixel limits are {}, {}.'.format(
+                    band, throughput_limits[0], throughput_limits[1]))
             # Round limits to a multiple of the instrument downsampling so
             # that all simulation pixels in the included downsampling groups
             # have non-zero throughput.
@@ -63,12 +67,14 @@ class Simulator(object):
             # after analysis downsampling.
             band_analysis_pixels = (stop - start) // analysis_downsampling
             stop = start + band_analysis_pixels * analysis_downsampling
-            print('Band {}: downsampled aligned pixel limits are {}, {}.'
-                .format(band, start, stop))
+            if verbose:
+                print('Band {}: downsampled aligned pixel limits are {}, {}.'
+                    .format(band, start, stop))
             self.num_analysis_pixels += band_analysis_pixels
             self.ranges.append((start, stop))
-        print('Total length of analysis pixel vector is {}.'
-            .format(self.num_analysis_pixels))
+        if verbose:
+            print('Total length of analysis pixel vector is {}.'
+                .format(self.num_analysis_pixels))
         # Allocate vectors for data downsampled to analysis bins and flattened
         # over b,r,z.
         self.flux = np.empty((self.num_analysis_pixels,), np.float32)

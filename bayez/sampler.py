@@ -45,6 +45,11 @@ class TemplateSampler(object):
         wave_max = desimodel.io.load_throughput('z').wavemax
         self.obs_wave = np.arange(wave_min - 1, wave_max + 1, dwave)
 
+    def print_summary(self):
+        print('{}: redshift [{:.2f}, {:.2f}] magnitude [{:.2f}, {:.2f}]'
+            .format(self.__class__.__name__, self.z_min, self.z_max,
+                    self.mag_min, self.mag_max))
+
     def trim_templates(self):
         # Find the rest wavelength bounds required to cover all redshifts.
         wave_min = self.obs_wave[0] / (1 + self.z_max)
@@ -100,8 +105,8 @@ class TemplateSampler(object):
 class QSOSampler(TemplateSampler):
     """Sample QSO spectral templates."""
 
-    def __init__(self, z_min=0.5, z_max=4.0, g_min=21., g_max=23.):
-        TemplateSampler.__init__(self, z_min, z_max, g_min, g_max)
+    def __init__(self, z_min=0.5, z_max=4.0, gmag_min=21., gmag_max=23.):
+        TemplateSampler.__init__(self, z_min, z_max, gmag_min, gmag_max)
         # Load the template data
         spectra, self.wave, meta = desisim.io.read_basis_templates('QSO')
         keep = (meta['Z'] >= z_min) & (meta['Z'] <= z_max)
@@ -235,9 +240,9 @@ class ELGSampler(TemplateSampler):
 
     For now, we only sample the EM continuum part of the template.
     """
-
-    def __init__(self, z_min=0.6, z_max=1.6, r_min=21.0, r_max=23.4, foii_min=1.):
-        TemplateSampler.__init__(self, z_min, z_max, r_min, r_max)#, num_z_bins=2)
+    def __init__(self, z_min=0.6, z_max=1.6, rmag_min=21.0, rmag_max=23.4,
+                 foii_min=1.):
+        TemplateSampler.__init__(self, z_min, z_max, rmag_min, rmag_max)
         # Load the template data
         self.spectra, self.wave, meta = desisim.io.read_basis_templates('ELG')
         self.num_templates = len(self.spectra)
