@@ -7,8 +7,9 @@ Values below are for my laptop.
 
 export DESI_BASIS_TEMPLATES=/Data/DESI/basis_templates/v1.1
 export DESISIM=/Users/david/Cosmo/DESI/code/desisim
-export DESIMODEL=/Users/david/Cosmo/DESI/code/desimodel
+#export DESIMODEL=/Users/david/Cosmo/DESI/code/desimodel
 """
+from __future__ import print_function, division
 
 import numpy as np
 import scipy.special
@@ -150,7 +151,7 @@ class LRGSampler(TemplateSampler):
         # Load the template data
         self.spectra, self.wave, meta = desisim.io.read_basis_templates('LRG')
         self.num_templates = len(self.spectra)
-        print 'Loaded {} templates.'.format(self.num_templates)
+        print('Loaded {} templates.'.format(self.num_templates))
         # Use flux units of 1e-17 * erg/cm/s/A
         self.spectra *= 1e17
         # Calculate magnitudes for each template.
@@ -174,9 +175,11 @@ class LRGSampler(TemplateSampler):
         self.rW1_color = rband - W1band
         self.sel_color = (self.rz_color >= 1.6) & (self.rW1_color >= 1.3 * self.rz_color - 0.33)
         allowed = np.sum(self.sel_color, axis=-1)
-        print '{} templates pass the color cuts.'.format(np.count_nonzero(allowed))
+        print('{} templates pass the color cuts.'
+            .format(np.count_nonzero(allowed)))
         self.sel_indices = np.where(allowed)[0]
-        # Calculate the z-band flux limits corresponding to the r-band and W1-band cuts.
+        # Calculate the z-band flux limits corresponding to the r-band and
+        # W1-band cuts.
         self.zmag_max_rcut = rmag_max - self.rz_color
         self.zmag_max_W1cut = W1mag_max - (W1band - self.zband)
         self.zmag_max = np.minimum(self.zmag_max_rcut, self.zmag_max_W1cut)
@@ -188,7 +191,8 @@ class LRGSampler(TemplateSampler):
         # Gaussian in log10(vdisp).
         vdisp_values = 10 ** subdivide_normal(
             num_vdisp, log10_vdisp_mean, log10_vdisp_rms)
-        print 'Using stellar velocity dispersions: {} km/s'.format(vdisp_values)
+        print('Using stellar velocity dispersions: {} km/s'
+            .format(vdisp_values))
         self.blur_matrices = []
         for vdisp in vdisp_values:
             sigma = 1.0 + self.wave * vdisp / CLIGHT_KM_S
@@ -237,7 +241,7 @@ class ELGSampler(TemplateSampler):
         # Load the template data
         self.spectra, self.wave, meta = desisim.io.read_basis_templates('ELG')
         self.num_templates = len(self.spectra)
-        print 'Loaded {} templates.'.format(self.num_templates)
+        print('Loaded {} templates.'.format(self.num_templates))
         self.d4000 = np.copy(meta['D4000'])
         self.ewoii = 10.0 ** (np.polyval([1.1074, -4.7338, 5.6585], self.d4000))
         self.oiiflux = meta['OII_CONTINUUM'] * self.ewoii
@@ -272,18 +276,21 @@ class ELGSampler(TemplateSampler):
                           (self.gr_color + 0.2 < self.rz_color) &
                           (self.rz_color < 1.2 - self.gr_color))
         allowed = np.sum(self.sel_color, axis=-1)
-        print '{} templates pass color-color cuts.'.format(np.count_nonzero(allowed))
+        print('{} templates pass color-color cuts.'
+            .format(np.count_nonzero(allowed)))
 
         # Calculate maximum allowed rband magnitude to pass OII min flux cut.
         self.rmax_oii = self.rband + 2.5 * np.log10(
             self.oiiflux[:, np.newaxis] / foii_min)
         self.sel_oii = self.rmax_oii > self.mag_max
         allowed = np.sum(self.sel_oii, axis=-1)
-        print '{} templates pass OII flux cut.'.format(np.count_nonzero(allowed))
+        print('{} templates pass OII flux cut.'
+            .format(np.count_nonzero(allowed)))
 
         self.sel_both = self.sel_oii & self.sel_color
         allowed = np.sum(self.sel_color & self.sel_oii, axis=-1)
-        print '{} templates pass all cuts.'.format(np.count_nonzero(allowed))
+        print('{} templates pass all cuts.'
+            .format(np.count_nonzero(allowed)))
         self.sel_indices = np.where(allowed)[0]
 
     def sample(self, generator=None):
