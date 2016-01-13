@@ -15,3 +15,4 @@ if not _ASTROPY_SETUP_:
     import sampler
     import simulation
     import prior
+    import estimator

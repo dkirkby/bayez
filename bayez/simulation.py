@@ -115,7 +115,7 @@ class Simulator(object):
             downsampling=self.instrument_downsampling)
         self.make_vectors()
         if noise_generator is not None:
-            dflux = simulator.ivar ** -0.5
-            simulator.flux += dflux * noise_generator.randn(self.num_analysis_pixels)
+            dflux = self.ivar ** -0.5
+            self.flux += dflux * noise_generator.randn(self.num_analysis_pixels)
 
         return self.results
