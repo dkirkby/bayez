@@ -7,6 +7,10 @@ export DESI_BASIS_TEMPLATES=/Data/DESI/basis_templates/v1.1
 export DESISIM=/Users/david/Cosmo/DESI/code/desisim
 export DESIMODEL=/Users/david/Cosmo/DESI/code/desimodel
 export BAYEZ_DATA=/Data/DESI/bayez
+
+Example usage:
+
+prepare_bayez --classname qso -n 1 --seed 1000 --verbose
 """
 from __future__ import print_function, division
 
@@ -25,7 +29,8 @@ def prepare(args=None):
         help = 'provide verbose output on progress')
     parser.add_argument('--classname', choices=['qso', 'lrg', 'elg'],
         default=None, help='Spectral class to prepare.')
-    parser.add_argument('-n', '--num-kilo-spectra', default=1, metavar='K',
+    parser.add_argument('-n', '--num-kilo-spectra',
+        type=int, default=1, metavar='K',
         help='Number of thousands of spectra to sample for the prior.')
     parser.add_argument('--downsampling', type=int, default=4, metavar='DS',
         help='Downsampling of 1A simulated pixels to use.')
