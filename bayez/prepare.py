@@ -10,7 +10,7 @@ export BAYEZ_DATA=/Data/DESI/bayez
 
 Example usage:
 
-prepare_bayez --classname qso -n 1 --seed 1000 --verbose
+prepare_bayez --classname qso -k 1 --seed 1000 --verbose
 """
 from __future__ import print_function, division
 
@@ -29,7 +29,7 @@ def prepare(args=None):
         help = 'provide verbose output on progress')
     parser.add_argument('--classname', choices=['qso', 'lrg', 'elg'],
         default=None, help='Spectral class to prepare.')
-    parser.add_argument('-n', '--num-kilo-spectra',
+    parser.add_argument('-k', '--num-kilo-spectra',
         type=int, default=1, metavar='K',
         help='Number of thousands of spectra to sample for the prior.')
     parser.add_argument('--downsampling', type=int, default=4, metavar='DS',
@@ -58,6 +58,7 @@ def prepare(args=None):
         args.classname, sampler, simulator, 1000 * args.num_kilo_spectra,
         seed=args.seed, print_interval=args.print_interval)
 
+    # Save the prior.
     path = os.environ.get('BAYEZ_DATA', '.')
     name = os.path.join(path, '{}_{}_{}k.fits'.format(
         args.classname, args.downsampling, args.num_kilo_spectra))

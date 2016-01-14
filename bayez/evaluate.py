@@ -4,6 +4,10 @@
 The following environment variables are required (values are for my laptop):
 
 export BAYEZ_DATA=/Data/DESI/bayez
+
+Example usage:
+
+eval_bayez --prior qso_4_1k.fits -n 100 --seed 10 --verbose
 """
 from __future__ import print_function, division
 
@@ -53,7 +57,11 @@ def evaluate(args=None):
         print('Prior uses downsampling {} for class {}.'
             .format(downsampling, classname))
 
-    # Load the prior now.
+    # Load the prior now.  Prepend $BAYEZ_DATA unless we already have
+    # an absolute path.
+    path = os.environ.get('BAYEZ_DATA', '.')
+    if not os.path.isabs(args.prior):
+        args.prior = os.path.join(path, args.path)
     prior = bayez.prior.load_prior(args.prior)
 
     # Prepare to simulate spectra for evaluation.
@@ -68,7 +76,6 @@ def evaluate(args=None):
         seed=args.seed, print_interval=500 if args.verbose else 0)
 
     # Save the results.
-    path = os.environ.get('BAYEZ_DATA', '.')
     name = os.path.join(path, '{}_{}.fits'.format(basename, args.seed))
     if args.verbose:
         print('Saving results to {}'.format(name))
