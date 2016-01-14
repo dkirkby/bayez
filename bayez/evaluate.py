@@ -61,7 +61,9 @@ def evaluate(args=None):
     # an absolute path.
     path = os.environ.get('BAYEZ_DATA', '.')
     if not os.path.isabs(args.prior):
-        args.prior = os.path.join(path, args.path)
+        args.prior = os.path.join(path, args.prior)
+    if args.verbose:
+        print('Reading prior from {}'.format(args.prior))
     prior = bayez.prior.load_prior(args.prior)
 
     # Prepare to simulate spectra for evaluation.
