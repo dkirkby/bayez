@@ -174,8 +174,8 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
                    seed=1, mag_err=0.1, print_interval=500):
 
     results = astropy.table.Table(
-        names = ('i', 't_index', 'mag', 'z', 'dz_map', 'dz_avg'),
-        dtype = ('i4', 'i4', 'f4', 'f4', 'f4', 'f4')
+        names = ('i', 't_index', 'mag', 'z', 'dz_map', 'dz_avg', 'best'),
+        dtype = ('i4', 'i4', 'f4', 'f4', 'f4', 'f4', 'i4')
     )
     for i in xrange(num_batch):
         generator = np.random.RandomState((seed, i))
@@ -188,7 +188,8 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
         results.add_row(dict(
             i=i, t_index=t_index, mag=true_mag, z=true_z,
             dz_map=estimator.z_best - true_z,
-            dz_avg=estimator.z_mean - true_z
+            dz_avg=estimator.z_mean - true_z,
+            best=estimator.i_best,
         ))
 
         if print_interval and (i + 1) % print_interval == 0:
