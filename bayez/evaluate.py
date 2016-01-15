@@ -83,4 +83,4 @@ def evaluate(args=None):
     name = os.path.join(path, '{}_{}.fits'.format(basename, args.seed))
     if args.verbose:
         print('Saving results to {}'.format(name))
-    results.write(name, clobber=True)
+    results.write(name, overwrite=True)
