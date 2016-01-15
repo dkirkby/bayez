@@ -28,6 +28,8 @@ def evaluate(args=None):
         help='Name of the prior to use, e.g., qso-4-10k.fits')
     parser.add_argument('-n', '--num-spectra', type=int, default=1, metavar='N',
         help='Number of spectra to use for evaluation.')
+    parser.add_argument('--mag-err', type=float, default=0.1, metavar='dM',
+        help='RMS error on targeting magnitudes to simulate.')
     parser.add_argument('--seed', type=int, default=None, metavar='S',
         help='Random seed to use for sampling templates.')
     args = parser.parse_args(args)
@@ -74,7 +76,7 @@ def evaluate(args=None):
     # Run the evaluation.
     estimator = bayez.estimator.RedshiftEstimator(prior, dz=0.001)
     results = bayez.estimator.estimate_batch(
-        estimator, args.num_spectra, sampler, simulator,
+        estimator, args.num_spectra, sampler, simulator, mag_err=args.mag_err,
         seed=args.seed, print_interval=500 if args.verbose else 0)
 
     # Save the results.
