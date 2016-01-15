@@ -23,14 +23,22 @@ import desimodel.io
 
 import astropy.constants
 import astropy.units as u
+import astropy.io.fits as fits
+
 
 class TemplateSampler(object):
     """Generic support for sampling spectroscopic templates.
 
     Subclasses handle the actual sampling for specific classes of objects.
+    The default wavelength range corresponds to::
+
+        wave_min = desimodel.io.load_throughput('b').wavemin
+        wave_max = desimodel.io.load_throughput('z').wavemax
+
     """
-    def __init__(self, z_min, z_max, mag_min, mag_max, num_z_bins=50,
-                 num_mag_bins=50, dwave=0.2):
+    def __init__(self, name, z_min, z_max, mag_min, mag_max, num_z_bins=50,
+                 num_mag_bins=50, wave_min=3533.0, wave_max=9913.0, dwave=0.2):
+        self.name = name
         self.z_min, self.z_max = z_min, z_max
         self.mag_min, self.mag_max = mag_min, mag_max
         # Initialize our redshift and magnitude grids.
@@ -39,14 +47,32 @@ class TemplateSampler(object):
         self.mag_bin_edges = np.linspace(mag_min, mag_max, num_mag_bins + 1)
         self.mag_grid = 0.5 * (self.mag_bin_edges[:-1] + self.mag_bin_edges[1:])
         # Initialize the observed-frame wavelength grid to use.
-        wave_min = desimodel.io.load_throughput('b').wavemin
-        wave_max = desimodel.io.load_throughput('z').wavemax
+        self.wave_min, self.wave_max, self.dwave = wave_min, wave_max, dwave
         self.obs_wave = np.arange(wave_min - 1, wave_max + 1, dwave)
 
+    def prepare_save(self):
+        """Save attributes common to all samplers to a FITS file.
+        """
+        # Create an empty primary HDU for header keywords
+        primary = fits.PrimaryHDU()
+        hdr = primary.header
+        hdr['NAME'] = self.name
+        hdr['Z_MIN'], hdr['Z_MAX'] = self.z_min, self.z_max
+        hdr['MAG_MIN'], hdr['MAG_MAX'] = self.mag_min, self.mag_max
+        hdr['NUM_Z_BINS'] = len(self.z_grid)
+        hdr['NUM_MAG_BINS'] = len(self.mag_grid)
+        hdr['WAVE_MIN'] = self.wave_min
+        hdr['WAVE_MAX'] = self.wave_max
+        # Save our internal arrays to ImageHDUs.
+        hdus = fits.HDUList([primary])
+        hdus.append(fits.ImageHDU(name='WAVE', data=self.wave))
+        hdus.append(fits.ImageHDU(name='SPECTRA', data=self.spectra))
+        return hdus
+
     def print_summary(self):
-        print('{}: redshift [{:.2f}, {:.2f}] magnitude [{:.2f}, {:.2f}]'
-            .format(self.__class__.__name__, self.z_min, self.z_max,
-                    self.mag_min, self.mag_max))
+        print('{}: z [{:.1f},{:.1f}] mag [{:.1f},{:.1f}] wave [{:.1f},{:.1f}]'
+            .format(self.name, self.z_min, self.z_max, self.mag_min,
+                    self.mag_max, self.wave_min, self.wave_max))
 
     def trim_templates(self):
         # Find the rest wavelength bounds required to cover all redshifts.
@@ -104,7 +130,7 @@ class QSOSampler(TemplateSampler):
     """Sample QSO spectral templates."""
 
     def __init__(self, z_min=0.5, z_max=4.0, gmag_min=21., gmag_max=23.):
-        TemplateSampler.__init__(self, z_min, z_max, gmag_min, gmag_max)
+        TemplateSampler.__init__(self, 'qso', z_min, z_max, gmag_min, gmag_max)
         # Load the template data
         spectra, self.wave, meta = desisim.io.read_basis_templates('QSO')
         keep = (meta['Z'] >= z_min) & (meta['Z'] <= z_max)
@@ -119,6 +145,16 @@ class QSOSampler(TemplateSampler):
         for i, spectrum in enumerate(self.spectra):
             self.gband[i] = -2.5 * (np.log10(
                 gfilter.get_maggies(self.wave, spectrum)) - 17.)
+
+    def save(self, filename, clobber=False):
+        hdus = self.prepare_save()
+        hdus.append(fits.ImageHDU(name='GBAND', data=self.gband))
+        hdus.append(fits.ImageHDU(name='TEMPLATE_Z', data=self.template_z))
+        hdus.writeto(filename, clobber=clobber)
+
+    def restore(self, hdus):
+        self.gband = np.copy(hdus['GBAND'])
+        self.template_z = np.copy(hdus['TEMPLATE_Z'])
 
     def sample(self, generator=None):
         if generator is None:
@@ -150,7 +186,7 @@ class LRGSampler(TemplateSampler):
     def __init__(self, z_min=0.5, z_max=1.1, zmag_min=19.0, zmag_max=20.5,
                  rmag_max=23., W1mag_max=19.35,
                  log10_vdisp_mean=2.3, log10_vdisp_rms=0.1, num_vdisp=5):
-        TemplateSampler.__init__(self, z_min, z_max, zmag_min, zmag_max)
+        TemplateSampler.__init__(self, 'lrg', z_min, z_max, zmag_min, zmag_max)
         # Load the template data
         self.spectra, self.wave, meta = desisim.io.read_basis_templates('LRG')
         self.num_templates = len(self.spectra)
@@ -241,7 +277,7 @@ class ELGSampler(TemplateSampler):
     """
     def __init__(self, z_min=0.6, z_max=1.6, rmag_min=21.0, rmag_max=23.4,
                  foii_min=1.):
-        TemplateSampler.__init__(self, z_min, z_max, rmag_min, rmag_max)
+        TemplateSampler.__init__(self, 'elg', z_min, z_max, rmag_min, rmag_max)
         # Load the template data
         self.spectra, self.wave, meta = desisim.io.read_basis_templates('ELG')
         self.num_templates = len(self.spectra)

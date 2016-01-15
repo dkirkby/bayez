@@ -8,6 +8,9 @@ import time
 
 import numpy as np
 
+import scipy.special
+import scipy.interpolate
+
 import astropy.table
 
 import numba
@@ -19,7 +22,7 @@ def calculate_pull(ivar, flux, norm, template):
 
 class RedshiftEstimator(object):
 
-    def __init__(self, prior, dz=0.001):
+    def __init__(self, prior, dz=0.001, quadrature_order=8):
 
         self.prior = prior
 
@@ -38,41 +41,71 @@ class RedshiftEstimator(object):
         num_priors, num_pixels = prior.flux.shape
         num_mag_bins = len(prior.mag_grid)
         self.posterior = np.empty((num_z_bins,), dtype=np.float64)
-        self.chisq = np.empty((num_priors, num_mag_bins), dtype=np.float64)
         self.pulls = np.empty((num_mag_bins, num_pixels), dtype=np.float64)
+        self.chisq = np.empty((num_priors, num_mag_bins), dtype=np.float64)
 
-    def run(self, flux, ivar):
+        # Calculate abscissas and weights for Gauss-Hermite quadrature.
+        if quadrature_order <= 0:
+            raise ValueError('Cannot have quadrature_order <= 0.')
+        # We assume that the pulls and chisq arrays needed for
+        # quadrature fit into the non-quadrature arrays.
+        if quadrature_order > num_mag_bins:
+            raise ValueError('Cannot have quadrature_order > num_mag_bins.')
+        hermite = scipy.special.hermite(quadrature_order)
+        self.quadrature_xi, self.quadrature_wi = (
+            hermite.weights[:, :2].transpose())
+        self.quadrature_wi /= np.sqrt(np.pi)
+        # Create a linear interpolator for the magnitude prior P(m|i).
+        self.mag_pdf_interpolator = scipy.interpolate.interp1d(
+            self.prior.mag_grid, self.prior.mag_pdf, kind='linear',
+            axis=-1, copy=False, bounds_error=False, fill_value=0.,
+            assume_sorted=True)
+        self.quadrature_order = quadrature_order
+
+    def run(self, flux, ivar, mag, mag_err):
+
+        # Use Gauss-Hermite quadrature for the flux normalization integral
+        # if we have an observed magnitude to localize the integrand.
+        if mag_err > 0:
+            # Calculate the asbscissas to use.
+            mj = np.sqrt(2) * mag_err * self.quadrature_xi + mag
+            # Interpolate the magnitude prior P(m|i) onto these abscissas.
+            weights = self.quadrature_wi * self.mag_pdf_interpolator(mj)
+            # Use views
+            pulls = self.pulls[:self.quadrature_order]
+            chisq = self.chisq[:, :self.quadrature_order]
+        else:
+            # We will not include a photometric likelihood P(M|m,i) factor
+            # so the weights are equal to the magnitude prior P(m|i) and
+            # we marginalize over the full magnitude grid.
+            mj = self.prior.mag_grid
+            weights = self.prior.mag_pdf
+            pulls = self.pulls
+            chisq = self.chisq
 
         # Loop over spectrum in the prior.
         for i, prior_flux in enumerate(self.prior.flux):
             # Calculate the normalization at each point of our magnitude grid
             # for this spectrum.
-            flux_norm = 10 ** (-0.4 * (self.prior.mag_grid - self.prior.mag[i]))
+            flux_norm = 10 ** (-0.4 * (mj - self.prior.mag[i]))
             # Calculate the chisq for this template at each flux normalization
-            '''
-            # Version 1: simple expression (with lots of temporaries)
-            pulls[:] = ivar * (flux - flux_norm[:, np.newaxis] * prior_flux)**2
-            '''
-            '''
-            # Version 2: use ufuncs to eliminate temporaries
-            pulls[:] = prior_flux
-            pulls *= flux_norm[:, np.newaxis]
-            pulls -= flux
-            pulls = np.square(pulls, out=pulls)
-            pulls *= ivar
-            '''
-            # Version 3: use numba ufunc with broadcasting
-            calculate_pull(ivar, flux, flux_norm[:, np.newaxis], prior_flux, out=self.pulls)
+            calculate_pull(ivar, flux, flux_norm[:, np.newaxis],
+                           prior_flux, out=pulls)
 
-            self.chisq[i] = np.sum(self.pulls, axis=-1)
+            # Sum over pixels to calculate chisq = -2 log(L) for the
+            # spectroscopic likelihood L=P(D|m_j,i).
+            chisq[i] = np.sum(pulls, axis=-1)
 
         # Subtract the minimum chisq so that exp(-chisq/2) does not underflow
         # for the most probable bins.
-        self.chisq_min = np.min(self.chisq)
-        self.chisq -= self.chisq_min
+        chisq_min = np.min(chisq)
+        chisq -= chisq_min
 
-        # Marginalize over magnitude for each prior spectrum.
-        self.marginalized = np.sum(np.exp(-0.5 * self.chisq), axis=-1)
+        # Marginalize over magnitude for each prior spectrum to calculate
+        # the posterior P(i|D,M).  The spectroscopic likelihood P(D|i) equals
+        # exp(-chisq/2) and the weights are the product of the magnitude
+        # prior P(m|i) and the magnitude likelihood P(M|m,dM), if any.
+        self.marginalized = np.sum(np.exp(-0.5 * chisq) * weights, axis=-1)
         self.marginalized /= np.sum(self.marginalized)
 
         # Find which template has the highest probability.
@@ -87,7 +120,7 @@ class RedshiftEstimator(object):
                                         minlength=self.posterior.size)
 
 
-def estimate_one(estimator, sampler, simulator, seed=1, i=0):
+def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1):
     """Run the estimator for a single simulated sample.
 
     This method requires that matplotlib is installed.
@@ -114,10 +147,11 @@ def estimate_one(estimator, sampler, simulator, seed=1, i=0):
     # Simulate the template.
     results = simulator.simulate(
         sampler.obs_wave, true_flux, noise_generator=generator)
+    mag_obs = true_mag + mag_err * generator.randn()
 
     # Run the estimator on the simulated analysis pixels.
     start_time = time.time()
-    estimator.run(simulator.flux, simulator.ivar)
+    estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
     elapsed = time.time() - start_time
     print('Elapsed time {:.3f}s'.format(elapsed))
     print('MAP: z[{}] = {:.4f}'.format(estimator.i_best, estimator.z_best))
@@ -137,7 +171,7 @@ def estimate_one(estimator, sampler, simulator, seed=1, i=0):
     plt.show()
 
 def estimate_batch(estimator, num_batch, sampler, simulator,
-                   seed=1, print_interval=500):
+                   seed=1, mag_err=0.1, print_interval=500):
 
     results = astropy.table.Table(
         names = ('i', 't_index', 'mag', 'z', 'dz_map', 'dz_avg'),
@@ -145,9 +179,12 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
     )
     for i in xrange(num_batch):
         generator = np.random.RandomState((seed, i))
-        true_flux, mag_pdf, true_z, true_mag, t_index = sampler.sample(generator)
-        simulator.simulate(sampler.obs_wave, true_flux, noise_generator=generator)
-        estimator.run(simulator.flux, simulator.ivar)
+        true_flux, mag_pdf, true_z, true_mag, t_index = (
+            sampler.sample(generator))
+        simulator.simulate(
+            sampler.obs_wave, true_flux, noise_generator=generator)
+        mag_obs = true_mag + mag_err * generator.randn()
+        estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
         results.add_row(dict(
             i=i, t_index=t_index, mag=true_mag, z=true_z,
             dz_map=estimator.z_best - true_z,
