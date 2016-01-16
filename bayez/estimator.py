@@ -201,7 +201,6 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
             print('Estimator failed for i={}'.format(i))
 
         if print_interval and (i + 1) % print_interval == 0:
-            print('[{}] mag = {:.2f}, z = {:.2f}, dz = {:+.04f}, {:+.04f}'
-                .format(*results[i]))
+            print('Completed {} / {} evaluation trials.'.format(i, num_batch))
 
     return results
