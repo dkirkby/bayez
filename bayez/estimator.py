@@ -22,7 +22,7 @@ def calculate_pull(ivar, flux, norm, template):
 
 class RedshiftEstimator(object):
 
-    def __init__(self, prior, dz=0.001, quadrature_order=8):
+    def __init__(self, prior, dz=0.001, quadrature_order=16):
 
         self.prior = prior
 
@@ -106,7 +106,10 @@ class RedshiftEstimator(object):
         # exp(-chisq/2) and the weights are the product of the magnitude
         # prior P(m|i) and the magnitude likelihood P(M|m,dM), if any.
         self.marginalized = np.sum(np.exp(-0.5 * chisq) * weights, axis=-1)
-        self.marginalized /= np.sum(self.marginalized)
+        marginal_sum = np.sum(self.marginalized)
+        if marginal_sum <= 0:
+            raise RuntimeError('Posterior probability ~ 0.')
+        self.marginalized /= marginal_sum
 
         # Find which template has the highest probability.
         self.i_best = np.argmax(self.marginalized)
@@ -185,14 +188,17 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
         simulator.simulate(
             sampler.obs_wave, true_flux, noise_generator=generator)
         mag_obs = true_mag + mag_err * generator.randn()
-        estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
-        results.add_row(dict(
-            i=i, t_true=t_index, mag=true_mag, z=true_z,
-            dz_map=estimator.z_best - true_z,
-            dz_avg=estimator.z_mean - true_z,
-            p_best=estimator.i_best,
-            t_best=estimator.prior.t_index[estimator.i_best]
-        ))
+        try:
+            estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
+            results.add_row(dict(
+                i=i, t_true=t_index, mag=true_mag, z=true_z,
+                dz_map=estimator.z_best - true_z,
+                dz_avg=estimator.z_mean - true_z,
+                p_best=estimator.i_best,
+                t_best=estimator.prior.t_index[estimator.i_best]
+            ))
+        except RuntimeError as e:
+            print('Estimator failed for i={}'.format(i))
 
         if print_interval and (i + 1) % print_interval == 0:
             print('[{}] mag = {:.2f}, z = {:.2f}, dz = {:+.04f}, {:+.04f}'

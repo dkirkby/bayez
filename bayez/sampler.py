@@ -126,6 +126,18 @@ class TemplateSampler(object):
         plt.tight_layout()
 
 
+def load_sampler(filename):
+    # Open the requested FITS file.
+    hdus = fits.open(filename, memmap=False)
+    hdr = hdus[0].header
+    # Initialize a new base class from the FITS header keywords.
+    sampler = TemplateSampler(
+        hdr['NAME'], hdr['Z_MIN'], hdr['Z_MAX'], hdr['MAG_MIN'], hdr['MAG_MAX'],
+        hdr['NUM_Z_BINS'], hdr['NUM_MAG_BINS'], hdr['WAVE_MIN'],
+        hdr['WAVE_MAX'], hdr['DWAVE'])
+    return sampler
+
+
 class QSOSampler(TemplateSampler):
     """Sample QSO spectral templates."""
 
