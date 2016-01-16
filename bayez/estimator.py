@@ -118,6 +118,18 @@ class RedshiftEstimator(object):
         # Calculate the mean redshift over the posterior.
         self.z_mean = np.average(self.prior.z, weights=self.marginalized)
 
+        # Calculate the cummulative distribution function of the posterior.
+        z_sort_order = np.argsort(self.prior.z)
+        z_sorted = np.insert(self.prior.z[z_sort_order],
+                             0, self.prior.z_min)
+        p_sorted = np.insert(self.marginalized[z_sort_order], 0, 0.)
+        cdf = np.cumsum(p_sorted)
+        # Interpolate to estimate posterior quantiles.
+        cdf_inv = scipy.interpolate.interp1d(cdf, z_sorted, kind='linear',
+                copy=False, bounds_error=False, fill_value=1.,
+                assume_sorted=True)
+        self.z_limits = cdf_inv([0.025, 0.16, 0.50, 0.84, 0.975])
+
         # Calculate the posterior probability in bins of redshift.
         self.posterior[:] = np.bincount(self.zbin, weights=self.marginalized,
                                         minlength=self.posterior.size)
@@ -160,15 +172,28 @@ def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1):
     print('MAP: z[{}] = {:.4f}'.format(estimator.i_best, estimator.z_best))
     print('<z> = {:.4f}'.format(estimator.z_mean))
 
-    # Plot the posterior probability distribution centered on the true value.
+    # Plot the posterior probability distribution.
     plt.subplot(1, 2, 2)
     plt.hist(estimator.z_grid, weights=estimator.posterior,
         bins=estimator.z_bin_edges, histtype='stepfilled', alpha=0.25)
     plt.axvline(true_z, ls='-', color='red')
     plt.axvline(estimator.z_mean, ls='--', color='red')
+    for z in estimator.z_limits:
+        plt.axvline(z, ls=':', color='red')
+
     plt.xlabel('Redshift $z$')
     plt.ylabel('Posterior $P(z|D)$')
-    plt.xlim(true_z - 0.02, true_z + 0.02)
+    z_pad = max(0.002, 0.1 * (estimator.z_limits[-1] - estimator.z_limits[0]))
+    plt.xlim(estimator.z_limits[0] - z_pad, estimator.z_limits[-1] + z_pad)
+
+    # Plot markers for each prior sample within the plot range.
+    y_lo, y_hi = plt.gca().get_ylim()
+    y_pos = 0.1 * y_lo + 0.9 * y_hi
+    visible = ((estimator.prior.z > estimator.z_limits[0] - z_pad) &
+               (estimator.prior.z < estimator.z_limits[-1] + z_pad))
+    for z in estimator.prior.z[visible]:
+        plt.plot(z, y_pos, 'rx', alpha=0.5)
+    plt.ylim(y_lo, y_hi)
 
     plt.tight_layout()
     plt.show()
@@ -178,8 +203,9 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
 
     results = astropy.table.Table(
         names = ('i', 't_true', 'mag', 'z', 'dz_map', 'dz_avg',
-            'p_best', 't_best'),
-        dtype = ('i4', 'i4', 'f4', 'f4', 'f4', 'f4', 'i4', 'i4')
+            'p_best', 't_best', 'z95_lo', 'z68_lo', 'z50', 'z68_hi', 'z95_hi'),
+        dtype = ('i4', 'i4', 'f4', 'f4', 'f4', 'f4', 'i4', 'i4',
+            'f4', 'f4', 'f4', 'f4', 'f4')
     )
     for i in xrange(num_batch):
         generator = np.random.RandomState((seed, i))
@@ -195,7 +221,10 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
                 dz_map=estimator.z_best - true_z,
                 dz_avg=estimator.z_mean - true_z,
                 p_best=estimator.i_best,
-                t_best=estimator.prior.t_index[estimator.i_best]
+                t_best=estimator.prior.t_index[estimator.i_best],
+                z95_lo=estimator.z_limits[0], z95_hi=estimator.z_limits[-1],
+                z68_lo=estimator.z_limits[1], z68_hi=estimator.z_limits[-2],
+                z50=estimator.z_limits[2]
             ))
         except RuntimeError as e:
             print('Estimator failed for i={}'.format(i))
