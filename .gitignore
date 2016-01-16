@@ -55,3 +55,6 @@ distribute-*.tar.gz
 *.fits
 *.png
 *.pdf
+
+# Log files
+*.log

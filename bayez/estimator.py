@@ -22,8 +22,14 @@ def calculate_pull(ivar, flux, norm, template):
 
 class RedshiftEstimator(object):
 
-    def __init__(self, prior, dz=0.001, quadrature_order=16):
-
+    def __init__(self, prior, dz=0.001, quadrature_order=16, nsig=3.0):
+        """
+        A quadrature_error > 0 specifies Gauss-Hermite quadrature for
+        marginalizing over magnitudes.  A value < 0 specifies trapezoidal
+        quadrature over +/- nsig sigmas.  A value of 0 forces trapezoidal
+        quadrature over the full range mag_min - mag_max, which is also
+        used when mag_err = 0 is passed to run().
+        """
         self.prior = prior
 
         # Initialize the posterior binning in redshift.
@@ -44,29 +50,37 @@ class RedshiftEstimator(object):
         self.pulls = np.empty((num_mag_bins, num_pixels), dtype=np.float64)
         self.chisq = np.empty((num_priors, num_mag_bins), dtype=np.float64)
 
-        # Calculate abscissas and weights for Gauss-Hermite quadrature.
-        if quadrature_order <= 0:
-            raise ValueError('Cannot have quadrature_order <= 0.')
+        if quadrature_order > 0:
+            # Calculate abscissas and weights for Gauss-Hermite quadrature.
+            hermite = scipy.special.hermite(quadrature_order)
+            self.quadrature_xi, self.quadrature_wi = (
+                hermite.weights[:, :2].transpose())
+            self.quadrature_wi /= np.sqrt(np.pi)
+        elif quadrature_order < 0:
+            quadrature_order = -quadrature_order
+            # Use equally spaced points spanning +/-3 sigma.
+            self.quadrature_xi = (
+                np.linspace(-nsig, +nsig, quadrature_order) / np.sqrt(2))
+            self.quadrature_wi = (np.exp(-self.quadrature_xi**2) *
+                2 * nsig / (quadrature_order - 1.) / np.sqrt(2 * np.pi))
+
         # We assume that the pulls and chisq arrays needed for
         # quadrature fit into the non-quadrature arrays.
         if quadrature_order > num_mag_bins:
-            raise ValueError('Cannot have quadrature_order > num_mag_bins.')
-        hermite = scipy.special.hermite(quadrature_order)
-        self.quadrature_xi, self.quadrature_wi = (
-            hermite.weights[:, :2].transpose())
-        self.quadrature_wi /= np.sqrt(np.pi)
+            raise ValueError('Cannot have |quadrature_order| > num_mag_bins.')
+        self.quadrature_order = quadrature_order
+
         # Create a linear interpolator for the magnitude prior P(m|i).
         self.mag_pdf_interpolator = scipy.interpolate.interp1d(
             self.prior.mag_grid, self.prior.mag_pdf, kind='linear',
             axis=-1, copy=False, bounds_error=False, fill_value=0.,
             assume_sorted=True)
-        self.quadrature_order = quadrature_order
 
     def run(self, flux, ivar, mag, mag_err):
 
         # Use Gauss-Hermite quadrature for the flux normalization integral
         # if we have an observed magnitude to localize the integrand.
-        if mag_err > 0:
+        if mag_err > 0 and self.quadrature_order != 0:
             # Calculate the asbscissas to use.
             mj = np.sqrt(2) * mag_err * self.quadrature_xi + mag
             # Interpolate the magnitude prior P(m|i) onto these abscissas.
@@ -199,7 +213,8 @@ def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1):
     plt.show()
 
 def estimate_batch(estimator, num_batch, sampler, simulator,
-                   seed=1, mag_err=0.1, print_interval=500):
+                   seed=1, mag_err=0.1, quadrature_order=16,
+                   print_interval=500):
 
     results = astropy.table.Table(
         names = ('i', 't_true', 'mag', 'z', 'dz_map', 'dz_avg',
