@@ -207,6 +207,9 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
         dtype = ('i4', 'i4', 'f4', 'f4', 'f4', 'f4', 'i4', 'i4',
             'f4', 'f4', 'f4', 'f4', 'f4')
     )
+    num_failed = 0
+    start_time = time.time()
+    print('Starting at {}.'.format(time.ctime(start_time)))
     for i in xrange(num_batch):
         generator = np.random.RandomState((seed, i))
         true_flux, mag_pdf, true_z, true_mag, t_index = (
@@ -227,9 +230,14 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
                 z50=estimator.z_limits[2]
             ))
         except RuntimeError as e:
+            num_failed += 1
             print('Estimator failed for i={}'.format(i))
 
-        if print_interval and (i + 1) % print_interval == 0:
-            print('Completed {} / {} evaluation trials.'.format(i, num_batch))
+        if ((print_interval and (i + 1) % print_interval == 0) or
+            (i == num_batch - 1)):
+            now = time.time()
+            rate = (now - start_time) / (i + 1.)
+            print('Completed {} / {} trials ({} failed) at {:.3f} sec/trial.'
+                .format(i + 1, num_batch, num_failed, rate))
 
     return results
