@@ -21,9 +21,11 @@ import desisim.pixelsplines
 
 import desimodel.io
 
+import astropy.io.fits as fits
 import astropy.constants
 import astropy.units as u
-import astropy.io.fits as fits
+
+CLIGHT_KM_S = astropy.constants.c.to(u.km / u.s).value
 
 
 class TemplateSampler(object):
@@ -138,6 +140,51 @@ def load_sampler(filename):
     return sampler
 
 
+class StarSampler(TemplateSampler):
+    """Sample normal stellar spectral templates."""
+    def __init__(self, rmag_min=18.0, rmag_max=23.4, vrad_stddev=200.,
+                 num_sigmas=5.):
+        # Redshift distribution is a truncated Gaussian.
+        self.z_stddev = vrad_stddev / CLIGHT_KM_S
+        z_max = num_sigmas * self.z_stddev
+        z_min = -z_max
+        TemplateSampler.__init__(self, 'star', z_min, z_max, rmag_min, rmag_max)
+        # Load the template data
+        self.spectra, self.wave, meta = read_basis_templates('STAR')
+        self.num_templates = len(self.spectra)
+        print('Loaded {} templates.'.format(self.num_templates))
+        # Use flux units of 1e-17 * erg/cm/s/A
+        self.spectra *= 1e17
+        # Calculate r-band magnitudes for each template.
+        rfilter = desisim.filterfunc.filterfunc(filtername='decam_r.txt')
+        self.rband = np.empty((len(spectra),))
+        for i, spectrum in enumerate(self.spectra):
+            self.rband[i] = -2.5 * (np.log10(
+                rfilter.get_maggies(self.wave, spectrum)) - 17.)
+        self.trim_templates()
+
+    def sample(self, generator=None):
+        if generator is None:
+            generator = np.random.RandomState()
+        t_index = generator.choice(self.num_templates)
+        # Pick a random redshift (radial velocity) for this template.
+        selected = False
+        while not selected:
+            z = self.z_stddev * generator.randn()
+            if z > self.z_min and z < self.z_max:
+                selected = True
+        # Pick a r-band magnitude uniformly over the full prior range.
+        rmag = generator.uniform(self.mag_min, self.mag_max)
+        rnorm = 10**(-0.4 * (rmag - self.rband[t_index]))
+        # Resample to our observed wavelength grid.
+        flux = self.resample_flux(self.wave, rnorm * self.spectra[t_index])
+        # All magnitudes are equally likely.
+        mag_pdf = np.ones_like(self.mag_grid)
+        mag_pdf /= np.sum(mag_pdf)
+
+        return flux, mag_pdf, z, rmag, t_index
+
+
 class QSOSampler(TemplateSampler):
     """Sample QSO spectral templates."""
 
@@ -147,6 +194,7 @@ class QSOSampler(TemplateSampler):
         spectra, self.wave, meta = desisim.io.read_basis_templates('QSO')
         keep = (meta['Z'] >= z_min) & (meta['Z'] <= z_max)
         self.num_templates = np.count_nonzero(keep)
+        print('Loaded {} templates.'.format(self.num_templates))
         # Use flux units of 1e-17 * erg/cm/s/A
         self.spectra = 1e17 * spectra[keep]
         # Templates are already redshifted so we don't call trim_templates()
@@ -245,7 +293,6 @@ class LRGSampler(TemplateSampler):
         print('Using stellar velocity dispersions: {} km/s'
             .format(vdisp_values))
         self.blur_matrices = []
-        CLIGHT_KM_S = astropy.constants.c.to(u.km / u.s).value
         for vdisp in vdisp_values:
             sigma = 1.0 + self.wave * vdisp / CLIGHT_KM_S
             self.blur_matrices.append(
