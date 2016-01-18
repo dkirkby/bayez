@@ -54,7 +54,7 @@ def evaluate(args=None):
     except ValueError:
         print('Badly formatted prior filename: {}.'.format(basename))
         return -1
-    if classname not in ('qso', 'lrg', 'elg', 'star'):
+    if classname not in ('qso', 'lrg', 'elg', 'elgem', 'star'):
         print('Invalid prior class name: {}.'.format(classname))
         return -1
     if args.verbose:

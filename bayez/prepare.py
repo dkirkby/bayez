@@ -27,13 +27,16 @@ def prepare(args=None):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-v', '--verbose', action = 'store_true',
         help = 'provide verbose output on progress')
-    parser.add_argument('--classname', choices=['qso', 'lrg', 'elg', 'star'],
+    parser.add_argument('--classname',
+        choices=['qso', 'lrg', 'elg', 'elgem', 'star'],
         default=None, help='Spectral class to prepare.')
     parser.add_argument('-k', '--num-kilo-spectra',
         type=int, default=1, metavar='K',
         help='Number of thousands of spectra to sample for the prior.')
     parser.add_argument('--downsampling', type=int, default=4, metavar='DS',
         help='Downsampling of 1A simulated pixels to use.')
+    parser.add_argument('--include-emission', action='store_true',
+        help='Add emission spectrum to ELG class.')
     parser.add_argument('--seed', type=int, default=None, metavar='S',
         help='Random seed to use for sampling templates.')
     parser.add_argument('--print-interval', type=int, default=500, metavar='P',

@@ -330,14 +330,16 @@ class LRGSampler(TemplateSampler):
 
         return flux, mag_pdf, z, zmag, t_index
 
+
 class ELGSampler(TemplateSampler):
     """Sample ELG spectral templates.
 
     For now, we only sample the EM continuum part of the template.
     """
     def __init__(self, z_min=0.6, z_max=1.6, rmag_min=21.0, rmag_max=23.4,
-                 foii_min=1.):
-        TemplateSampler.__init__(self, 'elg', z_min, z_max, rmag_min, rmag_max)
+                 foii_min=1., include_emission=False):
+        name = 'elgem' if include_emission else 'elg'
+        TemplateSampler.__init__(self, name, z_min, z_max, rmag_min, rmag_max)
         # Load the template data
         self.spectra, self.wave, meta = desisim.io.read_basis_templates('ELG')
         self.num_templates = len(self.spectra)
@@ -352,7 +354,8 @@ class ELGSampler(TemplateSampler):
         gfilter = desisim.filterfunc.filterfunc(filtername='decam_g.txt')
         rfilter = desisim.filterfunc.filterfunc(filtername='decam_r.txt')
         zfilter = desisim.filterfunc.filterfunc(filtername='decam_z.txt')
-        # Calculate the magnitudes of each normalized template on a grid of redshifts.
+        # Calculate the magnitudes of each normalized template on a grid of
+        # redshifts. We ignore the emission-line contributions for now.
         self.rband = np.empty((self.num_templates, len(self.z_grid)), np.float64)
         gband = np.empty_like(self.rband)
         zband = np.empty_like(self.rband)
@@ -368,6 +371,12 @@ class ELGSampler(TemplateSampler):
 
         # Trim spectra after calculating magnitudes.
         self.trim_templates()
+
+        # Initialize emission-line generator on trimmed wavelength grid.
+        if include_emission:
+            self.emission_model = desisim.templates.EMSpectrum(
+                log10wave=np.log10(self.wave))
+        self.include_emission = include_emission
 
         # Apply color-color cuts
         self.rz_color = self.rband - zband
@@ -413,17 +422,40 @@ class ELGSampler(TemplateSampler):
         # Pick an r-band magnitude uniformly over the prior range.
         rmag = generator.uniform(self.mag_min, self.mag_max)
         rnorm = 10**(-0.4 * (rmag - self.rband[t_index, z_index]))
+        flux = rnorm * self.spectra[t_index]
+        # Add an emission-line spectrum if requested.
+        if self.include_emission:
+            # Parameters hard-coded from ELG.make_templates() for now.
+            oiiihbeta = generator.uniform(-0.5, 0.1)
+            oiidoublet = generator.normal(0.73, 0.05)
+            vdisp = 10 ** generator.normal(1.9, 0.15)
+            zoiiflux = rnorm * self.oiiflux[t_index]
+            seed = generator.randint(1<<31)
+            # Use the generator to create a reproducible seed.
+            em_flux, em_wave, em_line = self.emission_model.spectrum(
+                linesigma=vdisp, oiidoublet=oiidoublet, oiiihbeta=oiiihbeta,
+                oiiflux=zoiiflux, seed=seed)
+            flux += em_flux / (1 + z)
         # Resample to our observed wavelength grid.
-        flux = self.resample_flux(self.wave * (1 + z), rnorm * self.spectra[t_index])
+        flux = self.resample_flux(self.wave * (1 + z), flux)
         # All magnitudes are equally likely.
         mag_pdf = np.ones_like(self.mag_grid)
         mag_pdf /= np.sum(mag_pdf)
 
         return flux, mag_pdf, z, rmag, t_index
 
+
+class ELGEMSampler(ELGSampler):
+    def __init__(self, z_min=0.6, z_max=1.6, rmag_min=21.0, rmag_max=23.4,
+                 foii_min=1.):
+        ELGSampler.__init__(self, z_min, z_max, rmag_min, rmag_max, foii_min,
+                            include_emission=True)
+
+
 Samplers = {
     'qso': QSOSampler,
     'lrg': LRGSampler,
     'elg': ELGSampler,
+    'elgem': ELGEMSampler,
     'star': StarSampler,
 }
