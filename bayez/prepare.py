@@ -27,7 +27,7 @@ def prepare(args=None):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-v', '--verbose', action = 'store_true',
         help = 'provide verbose output on progress')
-    parser.add_argument('--classname', choices=['qso', 'lrg', 'elg'],
+    parser.add_argument('--classname', choices=['qso', 'lrg', 'elg', 'star'],
         default=None, help='Spectral class to prepare.')
     parser.add_argument('-k', '--num-kilo-spectra',
         type=int, default=1, metavar='K',

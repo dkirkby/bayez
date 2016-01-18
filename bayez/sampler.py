@@ -150,14 +150,14 @@ class StarSampler(TemplateSampler):
         z_min = -z_max
         TemplateSampler.__init__(self, 'star', z_min, z_max, rmag_min, rmag_max)
         # Load the template data
-        self.spectra, self.wave, meta = read_basis_templates('STAR')
+        self.spectra, self.wave, meta = desisim.io.read_basis_templates('STAR')
         self.num_templates = len(self.spectra)
         print('Loaded {} templates.'.format(self.num_templates))
         # Use flux units of 1e-17 * erg/cm/s/A
         self.spectra *= 1e17
         # Calculate r-band magnitudes for each template.
         rfilter = desisim.filterfunc.filterfunc(filtername='decam_r.txt')
-        self.rband = np.empty((len(spectra),))
+        self.rband = np.empty((self.num_templates,))
         for i, spectrum in enumerate(self.spectra):
             self.rband[i] = -2.5 * (np.log10(
                 rfilter.get_maggies(self.wave, spectrum)) - 17.)
@@ -177,7 +177,8 @@ class StarSampler(TemplateSampler):
         rmag = generator.uniform(self.mag_min, self.mag_max)
         rnorm = 10**(-0.4 * (rmag - self.rband[t_index]))
         # Resample to our observed wavelength grid.
-        flux = self.resample_flux(self.wave, rnorm * self.spectra[t_index])
+        flux = self.resample_flux(
+            self.wave * (1 + z), rnorm * self.spectra[t_index])
         # All magnitudes are equally likely.
         mag_pdf = np.ones_like(self.mag_grid)
         mag_pdf /= np.sum(mag_pdf)
@@ -424,4 +425,5 @@ Samplers = {
     'qso': QSOSampler,
     'lrg': LRGSampler,
     'elg': ELGSampler,
+    'star': StarSampler,
 }
