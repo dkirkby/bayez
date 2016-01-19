@@ -16,3 +16,4 @@ if not _ASTROPY_SETUP_:
     import simulation
     import prior
     import estimator
+    import analysis

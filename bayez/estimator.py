@@ -4,14 +4,10 @@ Support for redshift estimation.
 """
 from __future__ import print_function, division
 
-import time
-
 import numpy as np
 
 import scipy.special
 import scipy.interpolate
-
-import astropy.table
 
 import numba
 
@@ -147,115 +143,3 @@ class RedshiftEstimator(object):
         # Calculate the posterior probability in bins of redshift.
         self.posterior[:] = np.bincount(self.zbin, weights=self.marginalized,
                                         minlength=self.posterior.size)
-
-
-def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1,
-                 save=None):
-    """Run the estimator for a single simulated sample.
-
-    This method requires that matplotlib is installed.
-    """
-    import matplotlib.pyplot as plt
-    # Pick a random template to simulate.
-    generator = np.random.RandomState((seed, i))
-    true_flux, mag_pdf, true_z, true_mag, t_index = sampler.sample(generator)
-    print('Generated [{}] z = {:.4f}, mag = {:.2f}'
-        .format(t_index, true_z, true_mag))
-
-    # Plot the template before simulation and without noise.
-    plt.figure(figsize=(10, 4))
-    plt.subplot(1, 2, 1)
-    plt.fill_between(sampler.obs_wave, true_flux, 0., color='green', alpha=0.2)
-    plt.plot(sampler.obs_wave, true_flux, 'g-',
-        label='z={:.2f},mag={:.2f}'.format(true_z, true_mag))
-    plt.xlim(sampler.obs_wave[0], sampler.obs_wave[-1])
-    plt.ylim(0., 2 * np.max(true_flux))
-    plt.xlabel('Wavelength (A)')
-    plt.ylabel('Flux')
-    plt.legend()
-
-    # Simulate the template.
-    results = simulator.simulate(
-        sampler.obs_wave, true_flux, noise_generator=generator)
-    mag_obs = true_mag + mag_err * generator.randn()
-
-    # Run the estimator on the simulated analysis pixels.
-    start_time = time.time()
-    estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
-    elapsed = time.time() - start_time
-    print('Elapsed time {:.3f}s'.format(elapsed))
-    print('MAP: z[{}] = {:.4f}'.format(estimator.i_best, estimator.z_best))
-    print('<z> = {:.4f}'.format(estimator.z_mean))
-
-    # Plot the posterior probability distribution.
-    plt.subplot(1, 2, 2)
-    plt.hist(estimator.z_grid, weights=estimator.posterior,
-        bins=estimator.z_bin_edges, histtype='stepfilled', alpha=0.25)
-    plt.axvline(true_z, ls='-', color='red')
-    plt.axvline(estimator.z_mean, ls='--', color='red')
-    for z in estimator.z_limits:
-        plt.axvline(z, ls=':', color='red')
-
-    plt.xlabel('Redshift $z$')
-    plt.ylabel('Posterior $P(z|D)$')
-    z_pad = max(0.002, 0.1 * (estimator.z_limits[-1] - estimator.z_limits[0]))
-    plt.xlim(estimator.z_limits[0] - z_pad, estimator.z_limits[-1] + z_pad)
-
-    # Plot markers for each prior sample within the plot range.
-    y_lo, y_hi = plt.gca().get_ylim()
-    y_pos = 0.1 * y_lo + 0.9 * y_hi
-    visible = ((estimator.prior.z > estimator.z_limits[0] - z_pad) &
-               (estimator.prior.z < estimator.z_limits[-1] + z_pad))
-    for z in estimator.prior.z[visible]:
-        plt.plot(z, y_pos, 'rx', alpha=0.5)
-    plt.ylim(y_lo, y_hi)
-
-    plt.tight_layout()
-    if save:
-        plt.savefig(save)
-    plt.show()
-
-def estimate_batch(estimator, num_batch, sampler, simulator,
-                   seed=1, mag_err=0.1, quadrature_order=16,
-                   print_interval=500):
-
-    results = astropy.table.Table(
-        names = ('i', 't_true', 'mag', 'z', 'dz_map', 'dz_avg',
-            'p_best', 't_best', 'z95_lo', 'z68_lo', 'z50', 'z68_hi', 'z95_hi'),
-        dtype = ('i4', 'i4', 'f4', 'f4', 'f4', 'f4', 'i4', 'i4',
-            'f4', 'f4', 'f4', 'f4', 'f4')
-    )
-    num_failed = 0
-    start_time = time.time()
-    print('Starting at {}.'.format(time.ctime(start_time)))
-    for i in xrange(num_batch):
-        generator = np.random.RandomState((seed, i))
-        true_flux, mag_pdf, true_z, true_mag, t_index = (
-            sampler.sample(generator))
-        simulator.simulate(
-            sampler.obs_wave, true_flux, noise_generator=generator)
-        mag_obs = true_mag + mag_err * generator.randn()
-        try:
-            estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
-            results.add_row(dict(
-                i=i, t_true=t_index, mag=true_mag, z=true_z,
-                dz_map=estimator.z_best - true_z,
-                dz_avg=estimator.z_mean - true_z,
-                p_best=estimator.i_best,
-                t_best=estimator.prior.t_index[estimator.i_best],
-                z95_lo=estimator.z_limits[0], z95_hi=estimator.z_limits[-1],
-                z68_lo=estimator.z_limits[1], z68_hi=estimator.z_limits[-2],
-                z50=estimator.z_limits[2]
-            ))
-        except RuntimeError as e:
-            num_failed += 1
-            print('Estimator failed for i={}'.format(i))
-
-        if ((print_interval and (i + 1) % print_interval == 0) or
-            (i == num_batch - 1)):
-            now = time.time()
-            rate = (now - start_time) / (i + 1.)
-            print('Completed {} / {} trials ({} failed) at {:.3f} sec/trial.'
-                .format(i + 1, num_batch, num_failed, rate))
-
-    return results
