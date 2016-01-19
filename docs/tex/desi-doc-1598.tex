@@ -1,0 +1,90 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1.3in]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{gensymb}
+
+\title{Bayesian Redshift Estimation for DESI\\
+{\Large DESI-doc-1598-v2}}
+\author{David Kirkby, Javier Sanchez, Noble Kennamer}
+
+\providecommand{\eqn}[1]{eqn.~(\ref{eqn:#1})}
+\providecommand{\tab}[1]{Table~\ref{tab:#1}}
+\providecommand{\fig}[1]{Figure~\ref{fig:#1}}
+
+%\providecommand{\vecsymbol}[1]{\ensuremath{\boldsymbol{#1}}}
+%\providecommand{\Dv}{\vecsymbol{D}}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+This is a brief note describing the formalism used in the {\tt bayez} redshift estimator developed for DESI.  More details and preliminary results for the first Redshift Data Challenge are described in an accompanying presentation\footnote{\url{
+https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=1598;filename=Bayez19Jan2016.pdf}}.
+
+The overall goals of this project are to:
+\begin{itemize}
+\item Develop a generic method of redshift estimation that can be applied to any class of spectroscopic object for any redshift survey.
+\item Formulate a Bayesian estimator to full exploit astrophysical priors and provide a true redshift posterior probability distribution that can be used for subsequent science analysis.
+\item Implement an estimator whose inner-loop consists primarily of dense array operations, so that the code can take advantage of the single-threaded optimizations provided by {\tt numba}\footnote{\url{http://numba.pydata.org}} and similar tools, and so that the algorithm is suitable for deployment on GPU architectures.
+\end{itemize}
+
+The code implementing the methods described here is publicly available on github\footnote{\url{https://github.com/dkirkby/bayez}} with an MIT open-source license. The latest version of the code as of this writing is 0.1, which can be installed using {\tt pip install bayez}.  Recent distributions of anaconda\footnote{\url{https://www.continuum.io/downloads}} contain all of the necessary support packages, except for for the following DESI packages: {\tt desispec}, {\tt desisim}, {\tt specter}, {\tt specsim}.
+
+This document is maintained in the {\tt docs/tex/} subdirectory of the {\tt bayez} package.
+
+
+\subsection{Formalism}
+
+We wish to evaluate the posterior probability density $P(z|D,M,C)$ of source redshift $z$ given spectroscopic data $D$, photometric magnitudes $M$, and an assumed source class $C$. Bayes rule gives
+\begin{align}
+P(z|D, M, C) &= \iint d\theta dm \, P(\theta, m, z | D, M, C) \\
+&= P(D,M|C)^{-1} F(z)
+\end{align}
+with
+\begin{align}
+F(z) &\equiv \iint d\theta dm \, P(D,M|\theta, m, z) P(\theta, m, z| C) \\
+P(D,M|C) &= \int dz\, F(z) \;,
+\end{align}
+where $m$ is the source magnitude in an arbitrary passband chosen to fix the normalization of the mean expected $D$, and $\theta$ represents all other parameters necessary to fully specify the diversity of the source class $C$.  We implement a Monte Carlo estimate of the integral $F(z)$ using $i = 1, \ldots, N_s$ randomly generated and equally probable noise-free samples of the prior $P(\theta, m, z)$, each with associated parameters 
+\begin{equation}
+\theta_i, m_i, z_i \sim P(\theta, m, z| C) \; ,
+\end{equation}
+then
+\begin{equation}
+F(z) \simeq \frac{1}{N_s} \sum_{i=1}^{N_s}\, \delta_D(z - z_i) \int dm\, P(D, M|m, i) P(m|i) \; ,
+\end{equation}
+where $\delta_D$ is the Dirac delta function. Next, we use quadrature on a 1D magnitude grid to estimate the normalization integral:
+\begin{equation}
+\int dm\, P(D, M|m, i) P(m|i) \simeq \sum_{j=1}^{N_m} \alpha_j P(D, M|m_j, i) P(m_j|i) \;,
+\end{equation}
+where $\alpha_j$ are constant coefficients fixed by the grid $m_j$ of $N_m$ magnitudes and the chosen quadrature scheme.  In the simplest case, the grid is equally spaced over the range $\Delta m$ and $\alpha_j = \Delta m / N_m$.
+
+Given data $D$ consisting of a vector of flux values $d_k$ over pixels $k=1,\ldots,N_p$ and associated non-zero Gaussian flux errors $\sigma_k$, we calculate the likelihood of the spectroscopic data $D$ as a multi-dimensional Gaussian
+\begin{equation}
+P(D|m_j, i) = (2\pi)^{-{N_p}/2} \left[\prod_{k=1}^{N_p} \sigma_k^{-2}\right]^{1/2} \exp(-\chi^2_{ij}/2) \; ,
+\end{equation}
+with
+\begin{equation}
+\chi^2_{ij} = \sum_{k=1}^{N_p} \sigma_k^{-2} \bigl[ d_k - 10^{-0.4(m_j - m_i)} s_{ik} \bigr]^2 \; ,
+\end{equation}
+and $s_{ik}$ is the noise-free flux in pixel $k$ associated with the prior MC sample $i$, having redshift $z_i$ and magnitude $m_i$.
+
+If we also have photometric measurements $M$ in $b = 1,\ldots,B$ bands, then we can further constrain the likelihood using
+\begin{equation}
+P(D, M|m_j, i) = P(D|m_j, i) P(M|m_j, i) \; .
+\end{equation}
+In the following, we assume that only a single photometric band is measured and it is the same band used for normalization, so that
+\begin{equation}
+P(M|m_j, i) = (2\pi)^{-1/2} \sigma_M^{-1} \exp( -(M - m_j)^2 / (2 \sigma_M^2) ) \;,
+\end{equation}
+where $\sigma_M \simeq 0.1$ is the Gaussian measurement error on $M$.  This enables us to implement the normalization integral using Gauss-Hermite quadrature with
+\begin{equation}
+m_j = \sqrt{2}\sigma_M x_j + M \quad , \quad \alpha_j = \pi^{-1/2} \omega_j \; ,
+\end{equation}
+where $x_i$ and $\omega_i$ are the order-$N_m$ quadrature abscissas and weights, respectively.
+
+\end{document}
