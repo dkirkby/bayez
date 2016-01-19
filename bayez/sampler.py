@@ -95,7 +95,7 @@ class TemplateSampler(object):
             wave, flux, copy=False, assume_sorted=True, kind='linear')
         return interpolator(self.obs_wave)
 
-    def plot_samples(self, num_samples=3, seed=None):
+    def plot_samples(self, num_samples=3, seed=None, save=None):
         """Plot some sample templates.
 
         This method requires that matplotlib is installed.
@@ -113,7 +113,7 @@ class TemplateSampler(object):
             plt.plot(self.mag_grid, mag_pdf, label=label)
         plt.subplot(1, 2, 1)
         plt.xlabel('Wavelength $\lambda$ ($\AA$)')
-        plt.ylabel('Template Flux $f(\lambda)$')
+        plt.ylabel('Flux $f(\lambda)$')
         plt.xlim(self.obs_wave[0], self.obs_wave[-1])
         plt.ylim(0., None)
         plt.grid()
@@ -126,7 +126,9 @@ class TemplateSampler(object):
         plt.ylim(0., None)
         plt.grid()
         plt.tight_layout()
-
+        if save:
+            plt.savefig(save)
+        plt.show()
 
 def load_sampler(filename):
     # Open the requested FITS file.

@@ -149,7 +149,8 @@ class RedshiftEstimator(object):
                                         minlength=self.posterior.size)
 
 
-def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1):
+def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1,
+                 save=None):
     """Run the estimator for a single simulated sample.
 
     This method requires that matplotlib is installed.
@@ -210,6 +211,8 @@ def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1):
     plt.ylim(y_lo, y_hi)
 
     plt.tight_layout()
+    if save:
+        plt.savefig(save)
     plt.show()
 
 def estimate_batch(estimator, num_batch, sampler, simulator,
