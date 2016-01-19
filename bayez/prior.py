@@ -108,17 +108,17 @@ def load_prior(filename):
     # Arrays in FITS files have dtypes like '>f4' where the '>' indicates
     # that bytes are in big-endian (aka network) order.  Since this is not
     # the native byte order on Intel platforms, perform byteswapping here.
-    assert np.dtype(np.float32).isnative
-    def read_float32(name):
-        array = hdus[name].data.astype(np.float32, casting='equiv', copy=True)
+    def read_native(name, dtype):
+        assert np.dtype(dtype).isnative
+        array = hdus[name].data.astype(dtype, casting='equiv', copy=True)
         del hdus[name].data
         return array
-    prior.wave = read_float32('WAVE')
-    prior.mag_grid = read_float32('MAG_GRID')
-    prior.flux = read_float32('FLUX'])
-    prior.mag_pdf = read_float32('MAG_PDF')
-    prior.z = read_float32('Z')
-    prior.mag = read_float32('MAG')
-    prior.t_index = read_float32('T_INDEX')
+    prior.wave = read_native('WAVE', np.float32)
+    prior.mag_grid = read_native('MAG_GRID', np.float64)
+    prior.flux = read_native('FLUX', np.float32)
+    prior.mag_pdf = read_native('MAG_PDF', np.float32)
+    prior.z = read_native('Z', np.float32)
+    prior.mag = read_native('MAG', np.float32)
+    prior.t_index = read_native('T_INDEX', np.int32)
     hdus.close()
     return prior
