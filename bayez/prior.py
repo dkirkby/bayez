@@ -105,12 +105,20 @@ def load_prior(filename):
     prior = Prior(name=hdr['NAME'])
     prior.z_min, prior.z_max = float(hdr['Z_MIN']), float(hdr['Z_MAX'])
     prior.mag_min, prior.mag_max = float(hdr['MAG_MIN']), float(hdr['MAG_MAX'])
-    prior.wave = np.copy(hdus['WAVE'].data)
-    prior.mag_grid = np.copy(hdus['MAG_GRID'].data)
-    prior.flux = np.copy(hdus['FLUX'].data)
-    prior.mag_pdf = np.copy(hdus['MAG_PDF'].data)
-    prior.z = np.copy(hdus['Z'].data)
-    prior.mag = np.copy(hdus['MAG'].data)
-    prior.t_index = np.copy(hdus['T_INDEX'].data)
+    # Arrays in FITS files have dtypes like '>f4' where the '>' indicates
+    # that bytes are in big-endian (aka network) order.  Since this is not
+    # the native byte order on Intel platforms, perform byteswapping here.
+    assert np.dtype(np.float32).isnative
+    def read_float32(name):
+        array = hdus[name].data.astype(np.float32, casting='equiv', copy=True)
+        del hdus[name].data
+        return array
+    prior.wave = read_float32('WAVE')
+    prior.mag_grid = read_float32('MAG_GRID')
+    prior.flux = read_float32('FLUX'])
+    prior.mag_pdf = read_float32('MAG_PDF')
+    prior.z = read_float32('Z')
+    prior.mag = read_float32('MAG')
+    prior.t_index = read_float32('T_INDEX')
     hdus.close()
     return prior
