@@ -14,11 +14,15 @@ import scipy.interpolate
 import astropy.table
 
 import numba
-from numba import float64, float32
 
-@numba.vectorize([float64(float32, float32, float64, float32)])
-def calculate_pull(ivar, flux, norm, template):
-    return ivar * (flux - norm * template) ** 2
+# Optimized inner loop for RedshiftEstimator.run()
+@numba.jit(nopython=True)
+def calculate_pull(ivar, flux, mi, mj, prior_flux, pulls):
+    for k in range(mj.shape[0]): # magnitude abscissas
+        flux_norm = 10 ** (-0.4 * (mj[k] - mi))
+        for j in range(flux.shape[0]): # pixels j
+            pulls[k, j] = ivar[j] * (flux[j] - flux_norm * prior_flux[j]) ** 2
+
 
 class RedshiftEstimator(object):
 
@@ -98,13 +102,9 @@ class RedshiftEstimator(object):
             chisq = self.chisq
 
         # Loop over spectrum in the prior.
-        for i, prior_flux in enumerate(self.prior.flux):
-            # Calculate the normalization at each point of our magnitude grid
-            # for this spectrum.
-            flux_norm = 10 ** (-0.4 * (mj - self.prior.mag[i]))
-            # Calculate the chisq for this template at each flux normalization
-            calculate_pull(ivar, flux, flux_norm[:, np.newaxis],
-                           prior_flux, out=pulls)
+        for i in range(self.prior.flux.shape[0]):
+            calculate_pull(
+                ivar, flux, self.prior.mag[i], mj, self.prior.flux[i], pulls)
 
             # Sum over pixels to calculate chisq = -2 log(L) for the
             # spectroscopic likelihood L=P(D|m_j,i).
