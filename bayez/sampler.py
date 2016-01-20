@@ -3,11 +3,10 @@
 Generate random samples of spectral templates.
 
 The following environment variables must be set to use this module.
-Values below are for my laptop.
+Values below are for my laptop::
 
-export DESI_BASIS_TEMPLATES=/Data/DESI/basis_templates/v1.1
-export DESISIM=/Users/david/Cosmo/DESI/code/desisim
-#export DESIMODEL=/Users/david/Cosmo/DESI/code/desimodel
+    export DESI_BASIS_TEMPLATES=/Data/DESI/basis_templates/v1.1
+    export DESISIM=/Users/david/Cosmo/DESI/code/desisim
 """
 from __future__ import print_function, division
 

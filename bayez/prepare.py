@@ -1,16 +1,16 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 """Entry point to prepare priors.
 
-The following environment variables are required (values are for my laptop):
+The following environment variables are required (values are for my laptop)::
 
-export DESI_BASIS_TEMPLATES=/Data/DESI/basis_templates/v1.1
-export DESISIM=/Users/david/Cosmo/DESI/code/desisim
-export DESIMODEL=/Users/david/Cosmo/DESI/code/desimodel
-export BAYEZ_DATA=/Data/DESI/bayez
+    export DESI_BASIS_TEMPLATES=/Data/DESI/basis_templates/v1.1
+    export DESISIM=/Users/david/Cosmo/DESI/code/desisim
+    export DESIMODEL=/Users/david/Cosmo/DESI/code/desimodel
+    export BAYEZ_DATA=/Data/DESI/bayez
 
-Example usage:
+Example usage::
 
-prepare_bayez --classname qso -k 1 --seed 1000 --verbose
+    prepare_bayez --classname qso -k 1 --seed 1000 --verbose
 """
 from __future__ import print_function, division
 

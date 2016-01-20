@@ -3,9 +3,9 @@
 Simulate the instrument response in each camera band.
 
 The following environment variables must be set to use this module.
-Values below are for my laptop.
+Values below are for my laptop::
 
-export DESIMODEL=/Users/david/Cosmo/DESI/code/desimodel
+    export DESIMODEL=/Users/david/Cosmo/DESI/code/desimodel
 """
 from __future__ import print_function, division
 

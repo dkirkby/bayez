@@ -1,13 +1,13 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 """Entry point to evaluate the redshift estimator on simulated spectra.
 
-The following environment variables are required (values are for my laptop):
+The following environment variables are required (values are for my laptop)::
 
-export BAYEZ_DATA=/Data/DESI/bayez
+    export BAYEZ_DATA=/Data/DESI/bayez
 
-Example usage:
+Example usage::
 
-eval_bayez --prior qso_4_1k.fits -n 100 --seed 10 --verbose
+    eval_bayez --prior qso_4_1k.fits -n 100 --seed 10 --verbose
 """
 from __future__ import print_function, division
 

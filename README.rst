@@ -1,7 +1,15 @@
 bayez
 =====
 
-A package for Bayesian redshift estimation, developed for DESI.
+.. image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
+    :target: http://www.astropy.org
+    :alt: Powered by Astropy Badge
+
+A python package for Bayesian redshift estimation, developed for DESI.
+
+* Free software: 3-clause BSD style license.
+* Documentation: `latest <http://bayez.readthedocs.org/en/latest/>`_ | `stable <http://bayez.readthedocs.org/en/stable/>`_
+* Based on the Astropy affiliated package template.
 
 Status reports for developers
 -----------------------------
