@@ -15,16 +15,18 @@ import numpy as np
 
 import specsim
 
-import desimodel.io
-
 
 class Simulator(object):
     """
     Create a new instrument simulator.
-    """
 
+    Requires that desimodel be installed so that desimodel.io can be
+    imported.
+    """
     def __init__(self, wavestep=0.2, instrument_downsampling=5,
                  analysis_downsampling=4, verbose=True):
+        import desimodel.io
+
         self.instrument_downsampling = instrument_downsampling
         self.analysis_downsampling = analysis_downsampling
         atmosphere = specsim.atmosphere.Atmosphere(

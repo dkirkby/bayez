@@ -13,13 +13,6 @@ from __future__ import print_function, division
 import numpy as np
 import scipy.special
 
-import desisim.io
-import desisim.filterfunc
-import desisim.templates
-import desisim.pixelsplines
-
-import desimodel.io
-
 import astropy.io.fits as fits
 import astropy.constants
 import astropy.units as u
@@ -142,9 +135,15 @@ def load_sampler(filename):
 
 
 class StarSampler(TemplateSampler):
-    """Sample normal stellar spectral templates."""
+    """Sample normal stellar spectral templates.
+
+    Requires that the desisim package installed.
+    """
     def __init__(self, rmag_min=18.0, rmag_max=23.4, vrad_stddev=200.,
                  num_sigmas=5.):
+        import desisim.io
+        import desisim.filterfunc
+
         # Redshift distribution is a truncated Gaussian.
         self.z_stddev = vrad_stddev / CLIGHT_KM_S
         z_max = num_sigmas * self.z_stddev
@@ -188,9 +187,15 @@ class StarSampler(TemplateSampler):
 
 
 class QSOSampler(TemplateSampler):
-    """Sample QSO spectral templates."""
+    """Sample QSO spectral templates.
+
+    Requires that the desisim package is installed.
+    """
 
     def __init__(self, z_min=0.5, z_max=4.0, gmag_min=21., gmag_max=23.):
+        import desisim.io
+        import desisim.filterfunc
+
         TemplateSampler.__init__(self, 'qso', z_min, z_max, gmag_min, gmag_max)
         # Load the template data
         spectra, self.wave, meta = desisim.io.read_basis_templates('QSO')
@@ -243,11 +248,17 @@ def subdivide_normal(num_points, mean=0., sigma=1.):
     return mean + np.sqrt(2) * sigma * scipy.special.erfinv(erf_centers)
 
 class LRGSampler(TemplateSampler):
-    """Sample LRG spectral templates."""
+    """Sample LRG spectral templates.
 
+    Requires that the desisim package is installed.
+    """
     def __init__(self, z_min=0.5, z_max=1.1, zmag_min=19.0, zmag_max=20.5,
                  rmag_max=23., W1mag_max=19.35,
                  log10_vdisp_mean=2.3, log10_vdisp_rms=0.1, num_vdisp=5):
+        import desisim.io
+        import desisim.filterfunc
+        import desisim.pixelsplines
+
         TemplateSampler.__init__(self, 'lrg', z_min, z_max, zmag_min, zmag_max)
         # Load the template data
         self.spectra, self.wave, meta = desisim.io.read_basis_templates('LRG')
@@ -336,9 +347,14 @@ class ELGSampler(TemplateSampler):
     """Sample ELG spectral templates.
 
     For now, we only sample the EM continuum part of the template.
+    Requires that the desisim package is installed.
     """
     def __init__(self, z_min=0.6, z_max=1.6, rmag_min=21.0, rmag_max=23.4,
                  foii_min=1., include_emission=False):
+        import desisim.io
+        import desisim.filterfunc
+        import desisim.templates
+
         name = 'elgem' if include_emission else 'elg'
         TemplateSampler.__init__(self, name, z_min, z_max, rmag_min, rmag_max)
         # Load the template data
