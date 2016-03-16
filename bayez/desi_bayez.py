@@ -145,7 +145,7 @@ def write_zbest(results, name='', path='', extrahdu=True):
     prihdr = fits.Header()
     prihdr['COMMENT']="Bayez redshift estimation. As for now error is computed as (zhi68-zlow68)/2"
     prihdu = fits.PrimaryHDU(header=prihdr)
-    if(extrahdu):
+    if(extrahdu): ##Extrahdu writes an extra hdu to include Bayez especific output
         thdulist = fits.HDUList([prihdu,tbhdu, tbhdu2])
     else:
         thdulist = fits.HDUList([prihdu,tbhdu])
