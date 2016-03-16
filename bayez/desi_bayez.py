@@ -95,15 +95,15 @@ def estimate_desi(estimator,objtype,path='', bricklist=[]):
     fl, iv, wav,idlist = read_brick(objtype,path,bricklist)
     flux, ivar, wave = downsample(fl,iv,wav,analysis_downsampling=4,instrument_downsampling=5, wavestep=0.2)
     results = astropy.table.Table(
-        names = ('i', 'z', 'p_best', 't_best', 'z95_lo', 'z68_lo', 'z50', 'z68_hi', 'z95_hi','zwarn','brickname','type','subtype'),
-        dtype = ('i4', 'f4','i4', 'i4','f4', 'f4', 'f4', 'f4', 'f4','i4','a8','a20','a20')
+        names = ('i', 'z', 'p_best', 't_best', 'z95_lo', 'z68_lo', 'z50', 'z68_hi', 'z95_hi','z_best','zwarn','brickname','type','subtype'),
+        dtype = ('i4', 'f4','i4', 'i4','f4', 'f4', 'f4', 'f4', 'f4','f4','i4','a8','a20','a20')
     )
 
     for i in range(0,flux.shape[0]):
         estimator.run(np.float32(flux[i]),np.float32(ivar[i]),-1,-1)
         results.add_row(dict(
             i=idlist[i],
-            z=estimator.z_best,
+            z=estimator.z_mean,
             p_best=estimator.i_best,
             t_best=estimator.prior.t_index[estimator.i_best],
             z95_lo=estimator.z_limits[0],
@@ -129,12 +129,21 @@ def write_zbest(results, name='', path=''):
     col5 = fits.Column(name='ZWARN', format='K', array=results['zwarn'])
     col6 = fits.Column(name='TYPE', format='20A', array=results['type'])
     col7 = fits.Column(name='SUBTYPE', format='20A', array=results['subtype'])
+    col8 = fits.Column(name='ZMAP', format='D', array=results['z_best'])
+    col9 = fits.Column(name='Z50', format='D', array=results['z50'])
+    col10 = fits.Column(name='Z95HI',format='D', array=results['z95_hi'])
+    col11 = fits.Column(name='Z95LO',format='D', array=results['z95_lo'])
+    col12 = fits.Column(name='Z68HI',format='D', array=results['z68_hi'])
+    col13 = fits.Column(name='Z68LO',format='D', array=results['z68_lo'])
     cols = fits.ColDefs([col1,col2,col3,col4,col5,col6,col7])
+    cols2 = fits.ColDefs([col8,col9,col10,col11,col12,col13])
     tbhdu = fits.new_table(cols)
     tbhdu.name = 'ZBEST'
+    tbhdu2 = fits.new_table(cols2)
+    tbhdu2.name = 'BAYEZ'
     hdu = fits.PrimaryHDU(1)
     prihdr = fits.Header()
     prihdr['COMMENT']="Bayez redshift estimation. As for now error is computed as (zhi68-zlow68)/2"
     prihdu = fits.PrimaryHDU(header=prihdr)
-    thdulist = fits.HDUList([prihdu,tbhdu])
+    thdulist = fits.HDUList([prihdu,tbhdu, tbhdu2])
     thdulist.writeto(path+name)
