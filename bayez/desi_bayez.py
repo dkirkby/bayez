@@ -121,7 +121,7 @@ def estimate_desi(estimator,objtype,path='', bricklist=[]):
 
 
 
-def write_zbest(results, name='', path=''):
+def write_zbest(results, name='', path='', extrahdu=True):
     col1 = fits.Column(name='BRICKNAME',format='8A', array=results['brickname'])
     col2 = fits.Column(name='TARGETID', format='K', array=results['i'])
     col3 = fits.Column(name='Z', format='D', array=results['z'])
@@ -145,5 +145,8 @@ def write_zbest(results, name='', path=''):
     prihdr = fits.Header()
     prihdr['COMMENT']="Bayez redshift estimation. As for now error is computed as (zhi68-zlow68)/2"
     prihdu = fits.PrimaryHDU(header=prihdr)
-    thdulist = fits.HDUList([prihdu,tbhdu, tbhdu2])
+    if(extrahdu):
+        thdulist = fits.HDUList([prihdu,tbhdu, tbhdu2])
+    else:
+        thdulist = fits.HDUList([prihdu,tbhdu])
     thdulist.writeto(path+name)
