@@ -105,7 +105,7 @@ def downsample(fl,iv,wav,analysis_downsampling=4, instrument_downsampling=5, wav
         base += n
     return flux, ivar, wave
 
-def estimate_desi(estimator,objtype,path='', bricklist=[]):
+def estimate_desi(estimator,objtype,path='', bricklist=[], obj_ini=0, obj_fin=0):
     """
     Function to estimate the redshift from a list of brick files
     Arguments:
@@ -119,8 +119,8 @@ def estimate_desi(estimator,objtype,path='', bricklist=[]):
         names = ('i', 'z', 'p_best', 't_best', 'z95_lo', 'z68_lo', 'z50', 'z68_hi', 'z95_hi','z_best','zwarn','brickname','type','subtype'),
         dtype = ('i4', 'f4','i4', 'i4','f4', 'f4', 'f4', 'f4', 'f4','f4','i4','a8','a20','a20')
     )
-
-    for i in range(0,flux.shape[0]):
+    if(obj_fin==0): obj_fin=flux.shape[0]
+    for i in range(obj_ini,obj_fin):
         estimator.run(np.float32(flux[i]),np.float32(ivar[i]),-1,-1)
         results.add_row(dict(
             i=idlist[i],
