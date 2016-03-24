@@ -105,7 +105,7 @@ def downsample(fl,iv,wav,analysis_downsampling=4, instrument_downsampling=5, wav
         base += n
     return flux, ivar, wave
 
-def estimate_desi(estimator,objtype,path='', bricklist=[], obj_ini=0, obj_fin=0):
+def estimate_desi(estimator,objtype,path='', bricklist=[], obj_ini=0, obj_fin=0, analysis_downsampling=4):
     """
     Function to estimate the redshift from a list of brick files
     Arguments:
@@ -114,7 +114,7 @@ def estimate_desi(estimator,objtype,path='', bricklist=[], obj_ini=0, obj_fin=0)
     bricklist = list with the brick file names (without extension). b, r, z order is assumed
     """
     fl, iv, wav,idlist = read_brick(objtype,path,bricklist)
-    flux, ivar, wave = downsample(fl,iv,wav,analysis_downsampling=4,instrument_downsampling=5, wavestep=0.2)
+    flux, ivar, wave = downsample(fl,iv,wav,analysis_downsampling=analysis_downsampling,instrument_downsampling=5, wavestep=0.2)
     results = astropy.table.Table(
         names = ('i', 'z', 'p_best', 't_best', 'z95_lo', 'z68_lo', 'z50', 'z68_hi', 'z95_hi','z_best','zwarn','brickname','type','subtype'),
         dtype = ('i4', 'f4','i4', 'i4','f4', 'f4', 'f4', 'f4', 'f4','f4','i4','a8','a20','a20')
