@@ -117,13 +117,13 @@ def estimate_desi(estimator,objtype,path='', bricklist=[], obj_ini=0, obj_fin=0,
     flux, ivar, wave = downsample(fl,iv,wav,analysis_downsampling=analysis_downsampling,instrument_downsampling=5, wavestep=0.2)
     results = astropy.table.Table(
         names = ('i', 'z', 'p_best', 't_best', 'z95_lo', 'z68_lo', 'z50', 'z68_hi', 'z95_hi','z_best','zwarn','brickname','type','subtype'),
-        dtype = ('i4', 'f4','i4', 'i4','f4', 'f4', 'f4', 'f4', 'f4','f4','i4','a8','a20','a20')
+        dtype = ('i8', 'f4','i4', 'i4','f4', 'f4', 'f4', 'f4', 'f4','f4','i4','a8','a20','a20')
     )
     if(obj_fin==0): obj_fin=flux.shape[0]
-    for i in range(obj_ini,obj_fin):
-        estimator.run(np.float32(flux[i]),np.float32(ivar[i]),-1,-1)
+    for j in range(obj_ini,obj_fin):
+        estimator.run(np.float32(flux[j]),np.float32(ivar[j]),-1,-1)
         results.add_row(dict(
-            i=idlist[i],
+            i=idlist[j],
             z=estimator.z_mean,
             p_best=estimator.i_best,
             t_best=estimator.prior.t_index[estimator.i_best],
