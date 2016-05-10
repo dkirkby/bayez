@@ -52,24 +52,28 @@ class Simulator(object):
         #self.qsim = specsim.quick.Quick(
             #atmosphere=atmosphere, basePath=os.environ['DESIMODEL'])
 
-        # Should this information be queried from the config object of the simulator?
         # Configure the simulation the same way that quickbrick does so that our simulated
         # pixel grid matches the data challenge simulation pixel grid.
         # desiparams = desimodel.io.load_desiparams()
-        # self.exptime = desiparams['exptime']
-        # if verbose:
-        #     print('Exposure time is {}s.'.format(self.exptime))
-        # wavemin = desimodel.io.load_throughput('b').wavemin
-        # wavemax = desimodel.io.load_throughput('z').wavemax
+
+        # I'm not sure we have to bother getting this stuff anymore
+        # we can probably delete most of this code.
+        self.exptime = self.simulator.instrument.exposure_time # desiparams['exptime']
+        if verbose:
+            print('Exposure time is {}s.'.format(self.exptime))
+        wavemin = self.simulator.instrument.wavelength_min # desimodel.io.load_throughput('b').wavemin
+        wavemax = self.simulator.instrument.wavelength_max # desimodel.io.load_throughput('z').wavemax
+
         # self.qsim.setWavelengthGrid(wavemin, wavemax, wavestep)
         # if verbose:
         #     print('Simulation wavelength grid: ', self.qsim.wavelengthGrid)
-        # self.fluxunits = specsim.spectrum.SpectralFluxDensity.fiducialFluxUnit
-        # self.ranges = []
-        # self.num_analysis_pixels = 0
+
+        self.fluxunits = self.simulator.source.flux_in.unit # specsim.spectrum.SpectralFluxDensity.fiducialFluxUnit
+        self.ranges = []
+        self.num_analysis_pixels = 0
+
         # Pick the range of pixels to use from each camera in the analysis.
         # Should be able to call wavelength_min/max on the camera objects
-
         for camera in self.simulator.instrument.cameras # for band in 'brz':
             j = self.qsim.instrument.cameraBands.index(band)
             R = self.qsim.cameras[j].sparseKernel
