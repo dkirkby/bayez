@@ -23,6 +23,7 @@ class Simulator(object):
     Requires that desimodel be installed so that desimodel.io can be
     imported.
     """
+    ### Input a config file get rid of wavestep and instrument_downsampling
     def __init__(self, wavestep=0.2, instrument_downsampling=5,
                  analysis_downsampling=4, verbose=True):
         import desimodel.io
@@ -48,6 +49,7 @@ class Simulator(object):
         self.ranges = []
         self.num_analysis_pixels = 0
         # Pick the range of pixels to use from each camera in the analysis.
+        # Should be able to call wavelength_min/max on the camera objects
         for band in 'brz':
             j = self.qsim.instrument.cameraBands.index(band)
             R = self.qsim.cameras[j].sparseKernel
@@ -115,6 +117,8 @@ class Simulator(object):
     def simulate(self, wave, flux, airmass=1.25, noise_generator=None):
         """
         """
+        #SpectralFluxDensity: The spectrum of the source without the sky
+        # Change to update_in from source.py
         inspec = specsim.spectrum.SpectralFluxDensity(
             wave, flux, fluxUnits=self.fluxunits, extrapolatedValue=True)
         self.results = self.qsim.simulate(
@@ -122,6 +126,7 @@ class Simulator(object):
             airmass=airmass, expTime=self.exptime,
             downsampling=self.instrument_downsampling)
         self.make_vectors()
+        ## Adding noise has been migrated into specsim
         if noise_generator is not None:
             dflux = self.ivar ** -0.5
             self.flux += dflux * noise_generator.randn(self.num_analysis_pixels)
