@@ -24,33 +24,53 @@ class Simulator(object):
     imported.
     """
     ### Input a config file get rid of wavestep and instrument_downsampling
-    def __init__(self, wavestep=0.2, instrument_downsampling=5,
+    def __init__(self, config,  # wavestep=0.2, instrument_downsampling=5,
                  analysis_downsampling=4, verbose=True):
+        """
+        config: A string or config object
+        analysis_downsampling: Used to downsample from instrument output pixel
+                               in order to work with smaller data vectors
+        verbose: If true ouputs information regarding the details and status
+                 of the simulation
+        """
         import desimodel.io
 
-        self.instrument_downsampling = instrument_downsampling
+        # This instrument downsampling is now being handeld in specsim
+        # self.instrument_downsampling = instrument_downsampling
+
         self.analysis_downsampling = analysis_downsampling
-        atmosphere = specsim.atmosphere.Atmosphere(
-            skyConditions='dark', basePath=os.environ['DESIMODEL'])
-        self.qsim = specsim.quick.Quick(
-            atmosphere=atmosphere, basePath=os.environ['DESIMODEL'])
+
+
+        # The creation of the atmosphere is now handeled within the simulator object
+        #atmosphere = specsim.atmosphere.Atmosphere(
+            #skyConditions='dark', basePath=os.environ['DESIMODEL'])
+
+        # Create the simulaton object
+        self.simulator = specsim.simulator.Simulator(config)
+
+        # Quick sim no longer exists
+        #self.qsim = specsim.quick.Quick(
+            #atmosphere=atmosphere, basePath=os.environ['DESIMODEL'])
+
+        # Should this information be queried from the config object of the simulator?
         # Configure the simulation the same way that quickbrick does so that our simulated
         # pixel grid matches the data challenge simulation pixel grid.
-        desiparams = desimodel.io.load_desiparams()
-        self.exptime = desiparams['exptime']
-        if verbose:
-            print('Exposure time is {}s.'.format(self.exptime))
-        wavemin = desimodel.io.load_throughput('b').wavemin
-        wavemax = desimodel.io.load_throughput('z').wavemax
-        self.qsim.setWavelengthGrid(wavemin, wavemax, wavestep)
-        if verbose:
-            print('Simulation wavelength grid: ', self.qsim.wavelengthGrid)
-        self.fluxunits = specsim.spectrum.SpectralFluxDensity.fiducialFluxUnit
-        self.ranges = []
-        self.num_analysis_pixels = 0
+        # desiparams = desimodel.io.load_desiparams()
+        # self.exptime = desiparams['exptime']
+        # if verbose:
+        #     print('Exposure time is {}s.'.format(self.exptime))
+        # wavemin = desimodel.io.load_throughput('b').wavemin
+        # wavemax = desimodel.io.load_throughput('z').wavemax
+        # self.qsim.setWavelengthGrid(wavemin, wavemax, wavestep)
+        # if verbose:
+        #     print('Simulation wavelength grid: ', self.qsim.wavelengthGrid)
+        # self.fluxunits = specsim.spectrum.SpectralFluxDensity.fiducialFluxUnit
+        # self.ranges = []
+        # self.num_analysis_pixels = 0
         # Pick the range of pixels to use from each camera in the analysis.
         # Should be able to call wavelength_min/max on the camera objects
-        for band in 'brz':
+
+        for camera in self.simulator.instrument.cameras # for band in 'brz':
             j = self.qsim.instrument.cameraBands.index(band)
             R = self.qsim.cameras[j].sparseKernel
             resolution_limits = np.where(R.sum(axis=0).A[0] != 0)[0][[0,-1]]
