@@ -15,6 +15,8 @@ import numpy as np
 
 import specsim
 
+import specsim.simulator
+
 
 class Simulator(object):
     """
@@ -33,7 +35,8 @@ class Simulator(object):
         verbose: If true ouputs information regarding the details and status
                  of the simulation
         """
-        import desimodel.io
+        # This does not need to be imported anymore.
+        # import desimodel.io
 
         # This instrument downsampling is now being handeld in specsim
         # self.instrument_downsampling = instrument_downsampling
@@ -74,25 +77,27 @@ class Simulator(object):
 
         # Pick the range of pixels to use from each camera in the analysis.
         # Should be able to call wavelength_min/max on the camera objects
-        for camera in self.simulator.instrument.cameras # for band in 'brz':
-            j = self.qsim.instrument.cameraBands.index(band)
-            R = self.qsim.cameras[j].sparseKernel
-            resolution_limits = np.where(R.sum(axis=0).A[0] != 0)[0][[0,-1]]
-            throughput_limits = np.where(
-                self.qsim.cameras[j].throughput > 0)[0][[0,-1]]
-            assert ((resolution_limits[0] < throughput_limits[0]) &
-                    (resolution_limits[1] > throughput_limits[1])), \
-                    'Unable to set band range.'
-            if verbose:
-                print('Band {}: simulation pixel limits are {}, {}.'.format(
-                    band, throughput_limits[0], throughput_limits[1]))
-            # Round limits to a multiple of the instrument downsampling so
-            # that all simulation pixels in the included downsampling groups
-            # have non-zero throughput.
-            start = (throughput_limits[0] + instrument_downsampling - 1) // instrument_downsampling
-            stop = throughput_limits[1] // instrument_downsampling
-            # Trim the end of the range to give an even number of pixel groups
-            # after analysis downsampling.
+        for band, cam_slice in self.simulator.camera_slices.items(): # for band in 'brz':
+            # j = self.qsim.instrument.cameraBands.index(band)
+            # R = self.qsim.cameras[j].sparseKernel
+            # resolution_limits = np.where(R.sum(axis=0).A[0] != 0)[0][[0,-1]]
+            # throughput_limits = np.where(
+            #     self.qsim.cameras[j].throughput > 0)[0][[0,-1]]
+            # assert ((resolution_limits[0] < throughput_limits[0]) &
+            #         (resolution_limits[1] > throughput_limits[1])), \
+            #         'Unable to set band range.'
+            # if verbose:
+            #     print('Band {}: simulation pixel limits are {}, {}.'.format(
+            #         band, throughput_limits[0], throughput_limits[1]))
+            # # Round limits to a multiple of the instrument downsampling so
+            # # that all simulation pixels in the included downsampling groups
+            # # have non-zero throughput.
+            # start = (throughput_limits[0] + instrument_downsampling - 1) // instrument_downsampling
+            # stop = throughput_limits[1] // instrument_downsampling
+            # # Trim the end of the range to give an even number of pixel groups
+            # # after analysis downsampling.
+            start = cam_slice.start
+            stop = cam_slice.stop
             band_analysis_pixels = (stop - start) // analysis_downsampling
             stop = start + band_analysis_pixels * analysis_downsampling
             if verbose:
