@@ -4,7 +4,9 @@ import astropy.table
 import os.path
 import specsim
 import desimodel
+import desimodel.io
 
+# Change
 atmosphere = specsim.atmosphere.Atmosphere(skyConditions='dark', basePath=os.environ['DESIMODEL'])
 qsim = specsim.quick.Quick(atmosphere=atmosphere, basePath=os.environ['DESIMODEL'])
 # Configure the simulation the same way that quickbrick does so that our simulated
@@ -12,6 +14,7 @@ qsim = specsim.quick.Quick(atmosphere=atmosphere, basePath=os.environ['DESIMODEL
 desiparams = desimodel.io.load_desiparams()
 exptime = desiparams['exptime']
 
+# Not this
 ## read_native reads in native format fits files in order to avoid time in byte swapping
 def read_native(hdus,name, dtype):
     assert np.dtype(dtype).isnative
@@ -46,6 +49,8 @@ def read_brick(objtype, path='', bricklist=[], verbose=True):
         if i==0:
             idlist = hdulist[4].data['TARGETID']
     return  fl, iv, wav, idlist
+
+# CHANGE
 def downsample(fl,iv,wav,analysis_downsampling=4, instrument_downsampling=5, wavestep=0.2):
     import desimodel.io
     wavemin = desimodel.io.load_throughput('b').wavemin
@@ -90,7 +95,7 @@ def downsample(fl,iv,wav,analysis_downsampling=4, instrument_downsampling=5, wav
         wave[base:base+n] = np.mean(band_wave.reshape(-1, analysis_downsampling), -1)
         base += n
     return flux, ivar, wave
-
+# NOT THIS
 def estimate_desi(estimator,objtype,path='', bricklist=[]):
     fl, iv, wav,idlist = read_brick(objtype,path,bricklist)
     flux, ivar, wave = downsample(fl,iv,wav,analysis_downsampling=4,instrument_downsampling=5, wavestep=0.2)
