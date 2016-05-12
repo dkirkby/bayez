@@ -146,21 +146,30 @@ class Simulator(object):
             self.wave = np.copy(wave)
         assert np.all(self.ivar > 0), 'Some simulated pixels have ivar <= 0!'
 
-    def simulate(self, wave, flux, airmass=1.25, noise_generator=None):
+    def simulate(self, wave, flux, name, type_name, noise_generator): # airmass=1.25, noise_generator=None):
         """
         """
         #SpectralFluxDensity: The spectrum of the source without the sky
         # Change to update_in from source.py
-        inspec = specsim.spectrum.SpectralFluxDensity(
-            wave, flux, fluxUnits=self.fluxunits, extrapolatedValue=True)
-        self.results = self.qsim.simulate(
-            sourceType='qso', sourceSpectrum=inspec,
-            airmass=airmass, expTime=self.exptime,
-            downsampling=self.instrument_downsampling)
+        # inspec = specsim.spectrum.SpectralFluxDensity(
+        #     wave, flux, fluxUnits=self.fluxunits, extrapolatedValue=True)
+        # Not sure what to do about the name and type name parameters.
+        # Should they be passed into the method
+        self.simulator.source.update_in(name=name, type_name=type_name, wavelengn_in=wave, flux_in=flux)
+
+
+        # self.results = self.qsim.simulate(
+        #     sourceType='qso', sourceSpectrum=inspec,
+        #     airmass=airmass, expTime=self.exptime,
+        #     downsampling=self.instrument_downsampling)
+        self.simulator.simulate()
+
+
         self.make_vectors()
         ## Adding noise has been migrated into specsim
         if noise_generator is not None:
             dflux = self.ivar ** -0.5
             self.flux += dflux * noise_generator.randn(self.num_analysis_pixels)
 
-        return self.results
+        # Should this method stil return something?
+        #return self.results
