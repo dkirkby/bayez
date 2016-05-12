@@ -77,7 +77,7 @@ class Simulator(object):
 
         # Pick the range of pixels to use from each camera in the analysis.
         # Should be able to call wavelength_min/max on the camera objects
-        for band, cam_slice in self.simulator.camera_slices.items(): # for band in 'brz':
+        for camera in self.simulator.instrument.cameras: # for band in 'brz':
             # j = self.qsim.instrument.cameraBands.index(band)
             # R = self.qsim.cameras[j].sparseKernel
             # resolution_limits = np.where(R.sum(axis=0).A[0] != 0)[0][[0,-1]]
@@ -96,8 +96,11 @@ class Simulator(object):
             # stop = throughput_limits[1] // instrument_downsampling
             # # Trim the end of the range to give an even number of pixel groups
             # # after analysis downsampling.
-            start = cam_slice.start
+            start = camera.ccd_slice.start
             stop = cam_slice.stop
+            # OR could just do
+            # band_analysis_pixels = np.where(camera.ccd_coverage)[0].shape // analysis_downsampling
+            # and not use the stop and start
             band_analysis_pixels = (stop - start) // analysis_downsampling
             stop = start + band_analysis_pixels * analysis_downsampling
             if verbose:
@@ -119,23 +122,23 @@ class Simulator(object):
         base = 0
         if self.wave is None:
             wave = np.empty_like(self.flux)
-        for band in 'brz':
-            j = self.qsim.instrument.cameraBands.index(band)
+        for j, camrea_output in enumerate(self.simulator.camera_output): #band in 'brz':
+            #j = self.qsim.instrument.cameraBands.index(band)
             start, stop = self.ranges[j]
             n = (stop - start) // self.analysis_downsampling
             stop = start + n * self.analysis_downsampling
             # Average the flux over each analysis bin.
-            instrument_flux = self.results['camflux'][start:stop, j]
+            instrument_flux = camera_output['obserbed_flux'][start:stop] # self.results['camflux'][start:stop, j]
             self.flux[base:base + n] = np.mean(
                 instrument_flux.reshape(-1, self.analysis_downsampling), -1)
             # Sum the inverse variances over each analysis bin.
-            instrument_ivar = self.results['camivar'][start:stop, j]
+            instrument_ivar = camera_output['flux_inverse_variance'][start:stop] # self.results['camivar'][start:stop, j]
             self.ivar[base:base + n] = np.sum(
                 instrument_ivar.reshape(-1, self.analysis_downsampling), -1)
             # Calculate the central wavelength of each analysis bin the first
             # time we are called.
             if self.wave is None:
-                band_wave = self.results.wave[start:stop]
+                band_wave = camera_output['wavelength'] # self.results.wave[start:stop]
                 wave[base:base + n] = np.mean(
                     band_wave.reshape(-1, self.analysis_downsampling), -1)
             base += n
