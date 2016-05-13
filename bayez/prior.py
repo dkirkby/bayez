@@ -76,7 +76,7 @@ def build_prior(name, sampler, simulator, num_priors,
     generator = np.random.RandomState(seed)
     for i in xrange(num_priors):
         spectrum, mag_pdf, z, mag, t_index = sampler.sample(generator)
-        simulator.simulate(sampler.obs_wave, spectrum)
+        simulator.simulate(sampler.obs_wave, spectrum, name)
         prior.flux[i] = simulator.flux
         prior.mag_pdf[i] = mag_pdf
         prior.z[i] = z

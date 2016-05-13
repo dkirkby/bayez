@@ -157,7 +157,7 @@ class Simulator(object):
             self.wave = np.copy(wave)
         assert np.all(self.ivar > 0), 'Some simulated pixels have ivar <= 0!'
 
-    def simulate(self, wave, flux, type_name, noise_generator): # airmass=1.25, noise_generator=None):
+    def simulate(self, wave, flux, type_name, noise_generator=None): # airmass=1.25, noise_generator=None):
         """
         """
         #SpectralFluxDensity: The spectrum of the source without the sky
@@ -166,7 +166,7 @@ class Simulator(object):
         #     wave, flux, fluxUnits=self.fluxunits, extrapolatedValue=True)
         # Not sure what to do about the name and type name parameters.
         # Should they be passed into the method
-        self.simulator.source.update_in(name="Not Meaninful", type_name=type_name, wavelengn_in=wave, flux_in=flux)
+        self.simulator.source.update_in(name="Not Meaninful", type_name=type_name, wavelength_in=wave, flux_in=flux)
 
 
         # self.results = self.qsim.simulate(
