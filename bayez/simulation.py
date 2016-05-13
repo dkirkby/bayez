@@ -61,18 +61,19 @@ class Simulator(object):
 
         # I'm not sure we have to bother getting this stuff anymore
         # we can probably delete most of this code.
-        self.exptime = self.simulator.instrument.exposure_time # desiparams['exptime']
-        if verbose:
-            print('Exposure time is {}s.'.format(self.exptime))
-        wavemin = self.simulator.instrument.wavelength_min # desimodel.io.load_throughput('b').wavemin
-        wavemax = self.simulator.instrument.wavelength_max # desimodel.io.load_throughput('z').wavemax
+        # self.exptime = self.simulator.instrument.exposure_time # desiparams['exptime']
+        # if verbose:
+        #     print('Exposure time is {}s.'.format(self.exptime))
+        # wavemin = self.simulator.instrument.wavelength_min # desimodel.io.load_throughput('b').wavemin
+        # wavemax = self.simulator.instrument.wavelength_max # desimodel.io.load_throughput('z').wavemax
 
         # self.qsim.setWavelengthGrid(wavemin, wavemax, wavestep)
         # if verbose:
         #     print('Simulation wavelength grid: ', self.qsim.wavelengthGrid)
 
         self.fluxunits = self.simulator.source.flux_in.unit # specsim.spectrum.SpectralFluxDensity.fiducialFluxUnit
-        self.ranges = []
+        #self.ranges = []
+        self.band_sizes = []
         self.num_analysis_pixels = 0
 
         # Pick the range of pixels to use from each camera in the analysis.
@@ -98,21 +99,20 @@ class Simulator(object):
             # # after analysis downsampling.
 
             # We could get rid of start and stop this and just use ccd_coverage (see below)
-            start = camera.ccd_slice.start
-            stop = cam_slice.stop
-            band_analysis_pixels = (stop - start) // analysis_downsampling
-            stop = start + band_analysis_pixels * analysis_downsampling
-            if verbose:
-                print('Band {}: downsampled aligned pixel limits are {}, {}.'
-                    .format(band, start, stop))
-            self.num_analysis_pixels += band_analysis_pixels
-            self.ranges.append((start, stop))
+            # start = camera.ccd_slice.start
+            # stop = cam_slice.stop
+            # band_analysis_pixels = (stop - start) // analysis_downsampling
+            # stop = start + band_analysis_pixels * analysis_downsampling
+            # if verbose:
+            #     print('Band {}: downsampled aligned pixel limits are {}, {}.'
+            #         .format(band, start, stop))
+            # self.num_analysis_pixels += band_analysis_pixels
+            # self.ranges.append((start, stop))
 
             # OR could just do
-            # band_analysis_pixels = np.where(camera.ccd_coverage)[0].shape // analysis_downsampling
-            # self.num_analysis_pixels += band_analysis_pixels
-            # self.band_sizes.append(band_analysis_pixels)
-            # and not use the stop and start
+            band_analysis_pixels = np.where(camera.ccd_coverage)[0].shape[0] // analysis_downsampling
+            self.num_analysis_pixels += band_analysis_pixels
+            self.band_sizes.append(band_analysis_pixels)
 
         if verbose:
             print('Total length of analysis pixel vector is {}.'
@@ -131,13 +131,13 @@ class Simulator(object):
         for j, camrea_output in enumerate(self.simulator.camera_output): #band in 'brz':
             #j = self.qsim.instrument.cameraBands.index(band)
             # Don't need start and stop anymore just use ccd_coverage (see above)
-            start, stop = self.ranges[j]
-            n = (stop - start) // self.analysis_downsampling
-            stop = start + n * self.analysis_downsampling
+            # start, stop = self.ranges[j]
+            # n = (stop - start) // self.analysis_downsampling
+            # stop = start + n * self.analysis_downsampling
 
             #REPLACE WITH
-            # n = self.band_sizes[j]
-            
+            n = self.band_sizes[j]
+
             # Average the flux over each analysis bin.
             instrument_flux = camera_output['obserbed_flux'] # self.results['camflux'][start:stop, j]
             self.flux[base:base + n] = np.mean(
@@ -157,7 +157,7 @@ class Simulator(object):
             self.wave = np.copy(wave)
         assert np.all(self.ivar > 0), 'Some simulated pixels have ivar <= 0!'
 
-    def simulate(self, wave, flux, name, type_name, noise_generator): # airmass=1.25, noise_generator=None):
+    def simulate(self, wave, flux, type_name, noise_generator): # airmass=1.25, noise_generator=None):
         """
         """
         #SpectralFluxDensity: The spectrum of the source without the sky
@@ -166,7 +166,7 @@ class Simulator(object):
         #     wave, flux, fluxUnits=self.fluxunits, extrapolatedValue=True)
         # Not sure what to do about the name and type name parameters.
         # Should they be passed into the method
-        self.simulator.source.update_in(name=name, type_name=type_name, wavelengn_in=wave, flux_in=flux)
+        self.simulator.source.update_in(name="Not Meaninful", type_name=type_name, wavelengn_in=wave, flux_in=flux)
 
 
         # self.results = self.qsim.simulate(
@@ -182,5 +182,5 @@ class Simulator(object):
             dflux = self.ivar ** -0.5
             self.flux += dflux * noise_generator.randn(self.num_analysis_pixels)
 
-        # Should this method stil return something?
+        # Should this method stil return something? No
         #return self.results
