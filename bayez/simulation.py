@@ -72,6 +72,7 @@ class Simulator(object):
         #     print('Simulation wavelength grid: ', self.qsim.wavelengthGrid)
 
         self.fluxunits = self.simulator.source.flux_in.unit # specsim.spectrum.SpectralFluxDensity.fiducialFluxUnit
+        self.waveunits = self.simulator.source.wavelength_in.unit
         #self.ranges = []
         self.band_sizes = []
         self.num_analysis_pixels = 0
@@ -166,7 +167,11 @@ class Simulator(object):
         #     wave, flux, fluxUnits=self.fluxunits, extrapolatedValue=True)
         # Not sure what to do about the name and type name parameters.
         # Should they be passed into the method
-        self.simulator.source.update_in(name="Not Meaninful", type_name=type_name, wavelength_in=wave, flux_in=flux)
+        print(type(flux * self.fluxunits))
+        print(flux)
+        print(type(wave))
+        print(wave)
+        self.simulator.source.update_in(name="Not Meaninful", type_name=type_name, wavelength_in=(wave*self.waveunits), flux_in= (flux*self.fluxunits))
 
 
         # self.results = self.qsim.simulate(
