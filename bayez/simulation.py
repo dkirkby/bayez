@@ -79,7 +79,7 @@ class Simulator(object):
 
         # Pick the range of pixels to use from each camera in the analysis.
         # Should be able to call wavelength_min/max on the camera objects
-        for camera in self.simulator.instrument.cameras: # for band in 'brz':
+        for camera_output in self.simulator.camera_output: # for band in 'brz':
             # j = self.qsim.instrument.cameraBands.index(band)
             # R = self.qsim.cameras[j].sparseKernel
             # resolution_limits = np.where(R.sum(axis=0).A[0] != 0)[0][[0,-1]]
@@ -111,7 +111,7 @@ class Simulator(object):
             # self.ranges.append((start, stop))
 
             # OR could just do
-            band_analysis_pixels = np.where(camera.ccd_coverage)[0].shape[0] // analysis_downsampling
+            band_analysis_pixels = camera_output['observed_flux'].shape[0] // analysis_downsampling
             self.num_analysis_pixels += band_analysis_pixels
             self.band_sizes.append(band_analysis_pixels)
 
@@ -129,7 +129,7 @@ class Simulator(object):
         base = 0
         if self.wave is None:
             wave = np.empty_like(self.flux)
-        for j, camrea_output in enumerate(self.simulator.camera_output): #band in 'brz':
+        for j, camera_output in enumerate(self.simulator.camera_output): #band in 'brz':
             #j = self.qsim.instrument.cameraBands.index(band)
             # Don't need start and stop anymore just use ccd_coverage (see above)
             # start, stop = self.ranges[j]
@@ -138,21 +138,24 @@ class Simulator(object):
 
             #REPLACE WITH
             n = self.band_sizes[j]
-
             # Average the flux over each analysis bin.
-            instrument_flux = camera_output['obserbed_flux'] # self.results['camflux'][start:stop, j]
+            instrument_flux = camera_output['observed_flux'] # self.results['camflux'][start:stop, j]
+            end = -1 * (instrument_flux.shape[0] % self.analysis_downsampling)
+            if end is 0:
+                end = None
+    
             self.flux[base:base + n] = np.mean(
-                instrument_flux.reshape(-1, self.analysis_downsampling), -1)
+                instrument_flux[:end].reshape(-1, self.analysis_downsampling), -1)
             # Sum the inverse variances over each analysis bin.
             instrument_ivar = camera_output['flux_inverse_variance'] # self.results['camivar'][start:stop, j]
             self.ivar[base:base + n] = np.sum(
-                instrument_ivar.reshape(-1, self.analysis_downsampling), -1)
+                instrument_ivar[:end].reshape(-1, self.analysis_downsampling), -1)
             # Calculate the central wavelength of each analysis bin the first
             # time we are called.
             if self.wave is None:
                 band_wave = camera_output['wavelength'] # self.results.wave[start:stop]
                 wave[base:base + n] = np.mean(
-                    band_wave.reshape(-1, self.analysis_downsampling), -1)
+                    band_wave[:end].reshape(-1, self.analysis_downsampling), -1)
             base += n
         if self.wave is None:
             self.wave = np.copy(wave)
@@ -167,10 +170,6 @@ class Simulator(object):
         #     wave, flux, fluxUnits=self.fluxunits, extrapolatedValue=True)
         # Not sure what to do about the name and type name parameters.
         # Should they be passed into the method
-        print(type(flux * self.fluxunits))
-        print(flux)
-        print(type(wave))
-        print(wave)
         self.simulator.source.update_in(name="Not Meaninful", type_name=type_name, wavelength_in=(wave*self.waveunits), flux_in= (flux*self.fluxunits))
         self.simulator.source.update_out()
 
