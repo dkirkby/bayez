@@ -172,6 +172,7 @@ class Simulator(object):
         print(type(wave))
         print(wave)
         self.simulator.source.update_in(name="Not Meaninful", type_name=type_name, wavelength_in=(wave*self.waveunits), flux_in= (flux*self.fluxunits))
+        self.simulator.source.update_out()
 
 
         # self.results = self.qsim.simulate(
