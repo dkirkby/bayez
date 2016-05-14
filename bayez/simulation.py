@@ -143,7 +143,7 @@ class Simulator(object):
             end = -1 * (instrument_flux.shape[0] % self.analysis_downsampling)
             if end is 0:
                 end = None
-    
+
             self.flux[base:base + n] = np.mean(
                 instrument_flux[:end].reshape(-1, self.analysis_downsampling), -1)
             # Sum the inverse variances over each analysis bin.
@@ -170,22 +170,29 @@ class Simulator(object):
         #     wave, flux, fluxUnits=self.fluxunits, extrapolatedValue=True)
         # Not sure what to do about the name and type name parameters.
         # Should they be passed into the method
+        print("In simulate before updates")
         self.simulator.source.update_in(name="Not Meaninful", type_name=type_name, wavelength_in=(wave*self.waveunits), flux_in= (flux*self.fluxunits))
         self.simulator.source.update_out()
+        print ("In simulate after updates")
 
 
         # self.results = self.qsim.simulate(
         #     sourceType='qso', sourceSpectrum=inspec,
         #     airmass=airmass, expTime=self.exptime,
         #     downsampling=self.instrument_downsampling)
+        print("In simulator before simulate is called")
         self.simulator.simulate()
+        print("In simulator after simulate is called and befeore make_vector is called")
 
 
         self.make_vectors()
+        print("In simulator after make_vector is called")
         ## Adding noise has been migrated into specsim
         if noise_generator is not None:
             dflux = self.ivar ** -0.5
             self.flux += dflux * noise_generator.randn(self.num_analysis_pixels)
+
+        print("After noise generator is done")
 
         # Should this method stil return something? No
         #return self.results

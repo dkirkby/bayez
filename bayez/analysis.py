@@ -40,8 +40,10 @@ def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1,
     plt.legend()
 
     # Simulate the template.
+    # TODO
+    #BUG HERE NO TYPE_NAME GIVEN TO THE SIMULATE METHOD!!!!!!!!
     results = simulator.simulate(
-        sampler.obs_wave, true_flux, noise_generator=generator)
+        sampler.obs_wave, true_flux, sampler.name, noise_generator=generator)
     mag_obs = true_mag + mag_err * generator.randn()
 
     # Run the estimator on the simulated analysis pixels.
@@ -105,8 +107,11 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
         generator = np.random.RandomState((seed, i))
         true_flux, mag_pdf, true_z, true_mag, t_index = (
             sampler.sample(generator))
+        # Use the name of the sampler as the type_name to the simulator.
+        print('Before simulate is called in estimate_batch')
         simulator.simulate(
-            sampler.obs_wave, true_flux, noise_generator=generator)
+            sampler.obs_wave, true_flux, sampler.name, noise_generator=generator)
+        print("After simulate is called in estimate batch")
         mag_obs = true_mag + mag_err * generator.randn()
         try:
             estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
