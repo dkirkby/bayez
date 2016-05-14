@@ -111,10 +111,13 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
         print('Before simulate is called in estimate_batch')
         simulator.simulate(
             sampler.obs_wave, true_flux, sampler.name, noise_generator=generator)
-        print("After simulate is called in estimate batch")
+        print("After simulate is called in estimate batch before mag_obs = ...")
         mag_obs = true_mag + mag_err * generator.randn()
+        print("Before try in esimate_batch")
         try:
+            print("Before estimator.run(...)")
             estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
+            print("Before results.add_row(...)")
             results.add_row(dict(
                 i=i, t_true=t_index, mag=true_mag, z=true_z,
                 dz_map=estimator.z_best - true_z,
@@ -126,16 +129,18 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
                 z50=estimator.z_limits[2]
             ))
         except RuntimeError as e:
+            print("IN except")
             num_failed += 1
             print('Estimator failed for i={}'.format(i))
 
+        print("Before IF")
         if ((print_interval and (i + 1) % print_interval == 0) or
             (i == num_batch - 1)):
             now = time.time()
             rate = (now - start_time) / (i + 1.)
             print('Completed {} / {} trials ({} failed) at {:.3f} sec/trial.'
                 .format(i + 1, num_batch, num_failed, rate))
-
+        print("Before RETURN")
     return results
 
 

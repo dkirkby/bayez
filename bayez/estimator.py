@@ -80,6 +80,7 @@ class RedshiftEstimator(object):
 
         # Use Gauss-Hermite quadrature for the flux normalization integral
         # if we have an observed magnitude to localize the integrand.
+        print("IN estimator.run(...)")
         if mag_err > 0 and self.quadrature_order != 0:
             # Calculate the asbscissas to use.
             mj = np.sqrt(2) * mag_err * self.quadrature_xi + mag
@@ -98,7 +99,10 @@ class RedshiftEstimator(object):
             chisq = self.chisq
 
         # Loop over spectrum in the prior.
+        print("BEFORE FOR LOOP")
+        print(self.prior.flux.shape[0])
         for i in range(self.prior.flux.shape[0]):
+            print("IN for loop: " + str(i))
             calculate_pull(
                 ivar, flux, self.prior.mag[i], mj, self.prior.flux[i], pulls)
 
@@ -106,6 +110,7 @@ class RedshiftEstimator(object):
             # spectroscopic likelihood L=P(D|m_j,i).
             chisq[i] = np.sum(pulls, axis=-1)
 
+        print("After for loop")
         # Subtract the minimum chisq so that exp(-chisq/2) does not underflow
         # for the most probable bins.
         chisq_min = np.min(chisq)
