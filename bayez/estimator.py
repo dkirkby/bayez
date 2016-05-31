@@ -14,6 +14,8 @@ import numba
 # Optimized inner loop for RedshiftEstimator.run()
 @numba.jit(nopython=True)
 def calculate_pull(ivar, flux, mi, mj, prior_flux, pulls):
+    print(np.sum(prior_flux))
+    print(np.sum(ivar))
     for k in range(mj.shape[0]): # magnitude abscissas
         flux_norm = 10 ** (-0.4 * (mj[k] - mi))
         for j in range(flux.shape[0]): # pixels j
@@ -109,6 +111,8 @@ class RedshiftEstimator(object):
             # Sum over pixels to calculate chisq = -2 log(L) for the
             # spectroscopic likelihood L=P(D|m_j,i).
             chisq[i] = np.sum(pulls, axis=-1)
+
+
 
         print("After for loop")
         # Subtract the minimum chisq so that exp(-chisq/2) does not underflow

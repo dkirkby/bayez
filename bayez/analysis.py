@@ -45,7 +45,7 @@ def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1,
     results = simulator.simulate(
         sampler.obs_wave, true_flux, sampler.name, noise_generator=generator)
     mag_obs = true_mag + mag_err * generator.randn()
-
+    print(results)
     # Run the estimator on the simulated analysis pixels.
     start_time = time.time()
     estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)

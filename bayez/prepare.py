@@ -54,7 +54,8 @@ def prepare(args=None):
         print('You must specify a seed to use.')
         return -1
 
-    simulator = bayez.simulation.Simulator(
+    # Adding config argument to simulator
+    simulator = bayez.simulation.Simulator('desi',
         analysis_downsampling=args.downsampling, verbose=args.verbose)
 
     prior = bayez.prior.build_prior(

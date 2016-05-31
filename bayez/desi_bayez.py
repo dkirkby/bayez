@@ -3,16 +3,20 @@ import astropy.io.fits as fits
 import astropy.table
 import os.path
 import specsim
+import specsim.simulator
 import desimodel
 import desimodel.io
 
+simulator = specsim.simulator.Simulator('DESI')
 # Change
-atmosphere = specsim.atmosphere.Atmosphere(skyConditions='dark', basePath=os.environ['DESIMODEL'])
-qsim = specsim.quick.Quick(atmosphere=atmosphere, basePath=os.environ['DESIMODEL'])
+# atmosphere = specsim.atmosphere.Atmosphere(skyConditions='dark', basePath=os.environ['DESIMODEL'])
+# qsim = specsim.quick.Quick(atmosphere=atmosphere, basePath=os.environ['DESIMODEL'])
+
 # Configure the simulation the same way that quickbrick does so that our simulated
 # pixel grid matches the data challenge simulation pixel grid.
-desiparams = desimodel.io.load_desiparams()
-exptime = desiparams['exptime']
+# Get rid of this
+# desiparams = desimodel.io.load_desiparams()
+# exptime = desiparams['exptime']
 
 # Not this
 ## read_native reads in native format fits files in order to avoid time in byte swapping
