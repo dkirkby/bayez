@@ -41,11 +41,10 @@ def estimate_one(estimator, sampler, simulator, seed=1, i=0, mag_err=0.1,
 
     # Simulate the template.
     # TODO
-    #BUG HERE NO TYPE_NAME GIVEN TO THE SIMULATE METHOD!!!!!!!!
-    results = simulator.simulate(
-        sampler.obs_wave, true_flux, sampler.name, noise_generator=generator)
+    #BUG HERE USING sampler.name as the object type!!!!!!!!
+    simulator.simulate(sampler.obs_wave, true_flux, sampler.name,
+                       noise_generator=generator)
     mag_obs = true_mag + mag_err * generator.randn()
-    print(results)
     # Run the estimator on the simulated analysis pixels.
     start_time = time.time()
     estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
@@ -108,16 +107,11 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
         true_flux, mag_pdf, true_z, true_mag, t_index = (
             sampler.sample(generator))
         # Use the name of the sampler as the type_name to the simulator.
-        print('Before simulate is called in estimate_batch')
         simulator.simulate(
             sampler.obs_wave, true_flux, sampler.name, noise_generator=generator)
-        print("After simulate is called in estimate batch before mag_obs = ...")
         mag_obs = true_mag + mag_err * generator.randn()
-        print("Before try in esimate_batch")
         try:
-            print("Before estimator.run(...)")
             estimator.run(simulator.flux, simulator.ivar, mag_obs, mag_err)
-            print("Before results.add_row(...)")
             results.add_row(dict(
                 i=i, t_true=t_index, mag=true_mag, z=true_z,
                 dz_map=estimator.z_best - true_z,
@@ -129,18 +123,16 @@ def estimate_batch(estimator, num_batch, sampler, simulator,
                 z50=estimator.z_limits[2]
             ))
         except RuntimeError as e:
-            print("IN except")
             num_failed += 1
             print('Estimator failed for i={}'.format(i))
 
-        print("Before IF")
         if ((print_interval and (i + 1) % print_interval == 0) or
             (i == num_batch - 1)):
             now = time.time()
             rate = (now - start_time) / (i + 1.)
             print('Completed {} / {} trials ({} failed) at {:.3f} sec/trial.'
                 .format(i + 1, num_batch, num_failed, rate))
-        print("Before RETURN")
+
     return results
 
 
