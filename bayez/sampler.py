@@ -78,7 +78,6 @@ class TemplateSampler(object):
             len(self.wave),stop - start))
         self.wave = np.copy(self.wave[start:stop])
         self.spectra = np.copy(self.spectra[:, start:stop])
-
     def resample_flux(self, wave, flux):
         """
         Linearly interpolate the input spectrum to our observed wavelength grid.
@@ -142,8 +141,7 @@ class StarSampler(TemplateSampler):
     def __init__(self, rmag_min=18.0, rmag_max=23.4, vrad_stddev=200.,
                  num_sigmas=5.):
         import desisim.io
-        import desisim.filterfunc
-
+        from speclite import filters
         # Redshift distribution is a truncated Gaussian.
         self.z_stddev = vrad_stddev / CLIGHT_KM_S
         z_max = num_sigmas * self.z_stddev
@@ -156,11 +154,11 @@ class StarSampler(TemplateSampler):
         # Use flux units of 1e-17 * erg/cm/s/A
         self.spectra *= 1e17
         # Calculate r-band magnitudes for each template.
-        rfilter = desisim.filterfunc.filterfunc(filtername='decam_r.txt')
+
+        rfilter = filters.load_filter('decam2014-r')
         self.rband = np.empty((self.num_templates,))
         for i, spectrum in enumerate(self.spectra):
-            self.rband[i] = -2.5 * (np.log10(
-                rfilter.get_maggies(self.wave, spectrum)) - 17.)
+            self.rband[i] = rfilter.get_ab_magnitude(spectrum*1e-17*filters.default_flux_unit, wavelength=self.wave)
         self.trim_templates()
 
     def sample(self, generator=None):
@@ -182,7 +180,7 @@ class StarSampler(TemplateSampler):
         # All magnitudes are equally likely.
         mag_pdf = np.ones_like(self.mag_grid)
         mag_pdf /= np.sum(mag_pdf)
-
+        #The flux has units of 10^-17 ergs/cm/s/A
         return flux, mag_pdf, z, rmag, t_index
 
 
@@ -194,24 +192,26 @@ class QSOSampler(TemplateSampler):
 
     def __init__(self, z_min=0.5, z_max=4.0, gmag_min=21., gmag_max=23.):
         import desisim.io
-        import desisim.filterfunc
-
+        from speclite import filters
+        import desisim.templates
         TemplateSampler.__init__(self, 'qso', z_min, z_max, gmag_min, gmag_max)
         # Load the template data
-        spectra, self.wave, meta = desisim.io.read_basis_templates('QSO')
-        keep = (meta['Z'] >= z_min) & (meta['Z'] <= z_max)
+        myqso = desisim.templates.QSO(minwave=3500.0,maxwave=10000.0,cdelt=0.2)
+        self.spectra, self.wave, meta = desisim.templates.QSO.make_templates(myqso,nmodel=1000)
+        self.template_z = meta['REDSHIFT']
+        keep = (self.template_z >= z_min) & (self.template_z <= z_max)
         self.num_templates = np.count_nonzero(keep)
         print('Loaded {} templates.'.format(self.num_templates))
         # Use flux units of 1e-17 * erg/cm/s/A
-        self.spectra = 1e17 * spectra[keep]
+        self.spectra = 1e17 * self.spectra[keep]
         # Templates are already redshifted so we don't call trim_templates()
-        self.template_z = meta['Z'][keep]
+        self.template_z = self.template_z[keep]
         # Calculate g-band magnitudes for each template.
-        gfilter = desisim.filterfunc.filterfunc(filtername='decam_g.txt')
+        gfilter = filters.load_filter('decam2014-g')
         self.gband = np.empty_like(self.template_z)
         for i, spectrum in enumerate(self.spectra):
-            self.gband[i] = -2.5 * (np.log10(
-                gfilter.get_maggies(self.wave, spectrum)) - 17.)
+            flux, wlen = gfilter.pad_spectrum(spectrum*1e-17*filters.default_flux_unit,self.wave)
+            self.gband[i] = gfilter.get_ab_magnitude(flux, wlen)
 
     def save(self, filename, clobber=False):
         hdus = self.prepare_save()
@@ -240,6 +240,7 @@ class QSOSampler(TemplateSampler):
 
         return flux, mag_pdf, z, gmag, t_index
 
+
 def subdivide_normal(num_points, mean=0., sigma=1.):
     """Return points that sample a Gaussian with equal probability.
     """
@@ -256,9 +257,8 @@ class LRGSampler(TemplateSampler):
                  rmag_max=23., W1mag_max=19.35,
                  log10_vdisp_mean=2.3, log10_vdisp_rms=0.1, num_vdisp=5):
         import desisim.io
-        import desisim.filterfunc
         import desisim.pixelsplines
-
+        from speclite import filters
         TemplateSampler.__init__(self, 'lrg', z_min, z_max, zmag_min, zmag_max)
         # Load the template data
         self.spectra, self.wave, meta = desisim.io.read_basis_templates('LRG')
@@ -267,21 +267,18 @@ class LRGSampler(TemplateSampler):
         # Use flux units of 1e-17 * erg/cm/s/A
         self.spectra *= 1e17
         # Calculate magnitudes for each template.
-        zfilter = desisim.filterfunc.filterfunc(filtername='decam_z.txt')
-        rfilter = desisim.filterfunc.filterfunc(filtername='decam_r.txt')
-        W1filter = desisim.filterfunc.filterfunc(filtername='wise_w1.txt')
+        zfilter = filters.load_filter('decam2014-z')
+        rfilter = filters.load_filter('decam2014-r')
+        W1filter = filters.load_filter('wise2010-w1')
         self.zband = np.empty((self.num_templates, len(self.z_grid)), np.float64)
         rband = np.empty_like(self.zband)
         W1band = np.empty_like(self.zband)
         for iz, z in enumerate(self.z_grid):
             wave = self.wave * (1 + z)
             for jt, spectrum in enumerate(self.spectra):
-                self.zband[jt, iz] = -2.5 * (np.log10(
-                    zfilter.get_maggies(wave, spectrum)) - 17.)
-                rband[jt, iz] = -2.5 * (np.log10(
-                    rfilter.get_maggies(wave, spectrum)) - 17.)
-                W1band[jt, iz] = -2.5 * (np.log10(
-                    W1filter.get_maggies(wave, spectrum)) - 17.)
+                self.zband[jt, iz] = zfilter.get_ab_magnitude(spectrum*1e-17*filters.default_flux_unit, wavelength=wave)
+                rband[jt, iz] = rfilter.get_ab_magnitude(spectrum*1e-17*filters.default_flux_unit, wavelength=wave)
+                W1band[jt, iz] = W1filter.get_ab_magnitude(spectrum*1e-17*filters.default_flux_unit, wavelength=wave)
         # Apply color-color cuts
         self.rz_color = rband - self.zband
         self.rW1_color = rband - W1band
@@ -343,7 +340,7 @@ class LRGSampler(TemplateSampler):
         return flux, mag_pdf, z, zmag, t_index
 
 
-class ELGSampler(TemplateSampler):
+class ELGNOEMSampler(TemplateSampler):
     """Sample ELG spectral templates.
 
     For now, we only sample the EM continuum part of the template.
@@ -352,10 +349,9 @@ class ELGSampler(TemplateSampler):
     def __init__(self, z_min=0.6, z_max=1.6, rmag_min=21.0, rmag_max=23.4,
                  foii_min=1., include_emission=False):
         import desisim.io
-        import desisim.filterfunc
         import desisim.templates
-
-        name = 'elgem' if include_emission else 'elg'
+        from speclite import filters
+        name = 'elg' if include_emission else 'elgnoem'
         TemplateSampler.__init__(self, name, z_min, z_max, rmag_min, rmag_max)
         # Load the template data
         self.spectra, self.wave, meta = desisim.io.read_basis_templates('ELG')
@@ -364,13 +360,11 @@ class ELGSampler(TemplateSampler):
         self.d4000 = np.copy(meta['D4000'])
         self.ewoii = 10.0 ** (np.polyval([1.1074, -4.7338, 5.6585], self.d4000))
         self.oiiflux = meta['OII_CONTINUUM'] * self.ewoii
-        # Use flux units of 1e-17 * erg/cm/s/A
-        self.spectra *= 1e17
-        self.oiiflux *= 1e17
-        # Initialize bandpass filters
-        gfilter = desisim.filterfunc.filterfunc(filtername='decam_g.txt')
-        rfilter = desisim.filterfunc.filterfunc(filtername='decam_r.txt')
-        zfilter = desisim.filterfunc.filterfunc(filtername='decam_z.txt')
+        self.spectra = self.spectra*1e17
+        gfilter = filters.load_filter('decam2014-g')
+        rfilter = filters.load_filter('decam2014-r')
+        zfilter = filters.load_filter('decam2014-z')
+
         # Calculate the magnitudes of each normalized template on a grid of
         # redshifts. We ignore the emission-line contributions for now.
         self.rband = np.empty((self.num_templates, len(self.z_grid)), np.float64)
@@ -379,13 +373,13 @@ class ELGSampler(TemplateSampler):
         for iz, z in enumerate(self.z_grid):
             wave = self.wave * (1 + z)
             for jt, spectrum in enumerate(self.spectra):
-                self.rband[jt, iz] = -2.5 * (np.log10(
-                    rfilter.get_maggies(wave, spectrum)) - 17.)
-                gband[jt, iz] = -2.5 * (np.log10(
-                    gfilter.get_maggies(wave, spectrum)) - 17.)
-                zband[jt, iz] = -2.5 * (np.log10(
-                    zfilter.get_maggies(wave, spectrum)) - 17.)
-
+                if np.all(np.diff(wave) > 0):
+                    self.rband[jt, iz] = rfilter.get_ab_magnitude(
+                        spectrum*1e-17*filters.default_flux_unit, wavelength=wave)
+                    gband[jt, iz] = gfilter.get_ab_magnitude(spectrum*1e-17*filters.default_flux_unit,
+                        wavelength=wave)
+                    zband[jt, iz] = zfilter.get_ab_magnitude(spectrum*1e-17*filters.default_flux_unit,
+                        wavelength=wave)
         # Trim spectra after calculating magnitudes.
         self.trim_templates()
 
@@ -398,17 +392,17 @@ class ELGSampler(TemplateSampler):
         # Apply color-color cuts
         self.rz_color = self.rband - zband
         self.gr_color = gband - self.rband
-        self.sel_color = ((self.rz_color >= 0.3) & (self.rz_color <= 1.5) &
-                          (self.gr_color + 0.2 < self.rz_color) &
-                          (self.rz_color < 1.2 - self.gr_color))
+        self.sel_color = ((self.rz_color >= 0.3) & (self.rz_color <= 1.6) &
+                          (self.gr_color + 0.15 < 1.15*self.rz_color) &
+                          (1.2*self.rz_color < 1.6 - self.gr_color))
         allowed = np.sum(self.sel_color, axis=-1)
         print('{} templates pass color-color cuts.'
             .format(np.count_nonzero(allowed)))
 
         # Calculate maximum allowed rband magnitude to pass OII min flux cut.
-        self.rmax_oii = self.rband + 2.5 * np.log10(
+        self.rmax_oii = self.rband - 2.5 * np.log10(
             self.oiiflux[:, np.newaxis] / foii_min)
-        self.sel_oii = self.rmax_oii > self.mag_max
+        self.sel_oii = self.rmax_oii < self.mag_max
         allowed = np.sum(self.sel_oii, axis=-1)
         print('{} templates pass OII flux cut.'
             .format(np.count_nonzero(allowed)))
@@ -462,10 +456,10 @@ class ELGSampler(TemplateSampler):
         return flux, mag_pdf, z, rmag, t_index
 
 
-class ELGEMSampler(ELGSampler):
+class ELGSampler(ELGNOEMSampler):
     def __init__(self, z_min=0.6, z_max=1.6, rmag_min=21.0, rmag_max=23.4,
                  foii_min=1.):
-        ELGSampler.__init__(self, z_min, z_max, rmag_min, rmag_max, foii_min,
+        ELGNOEMSampler.__init__(self, z_min, z_max, rmag_min, rmag_max, foii_min,
                             include_emission=True)
 
 
@@ -473,6 +467,6 @@ Samplers = {
     'qso': QSOSampler,
     'lrg': LRGSampler,
     'elg': ELGSampler,
-    'elgem': ELGEMSampler,
+    'elgnoem': ELGNOEMSampler,
     'star': StarSampler,
 }

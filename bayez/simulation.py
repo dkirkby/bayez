@@ -39,7 +39,7 @@ class Simulator(object):
         # Create the simulaton object
         self.simulator = specsim.simulator.Simulator(config)
 
-        self.fluxunits = self.simulator.source.flux_in.unit # specsim.spectrum.SpectralFluxDensity.fiducialFluxUnit
+        self.fluxunits = self.simulator.source.flux_in.unit #specsim uses erg/s/cm^{-2}/A as flux units
         self.waveunits = self.simulator.source.wavelength_in.unit
         self.band_sizes = []
         self.num_analysis_pixels = 0
@@ -93,7 +93,7 @@ class Simulator(object):
     def simulate(self, wave, flux, type_name, noise_generator=None): # airmass=1.25, noise_generator=None):
         """
         """
-        self.simulator.source.update_in(name="Not Meaninful", type_name=type_name, wavelength_in=(wave*self.waveunits), flux_in= (flux*self.fluxunits))
+        self.simulator.source.update_in(name="Not Meaningful", type_name=type_name, wavelength_in=(wave*self.waveunits), flux_in= (flux*self.fluxunits))
         self.simulator.source.update_out()
 
         self.simulator.simulate()

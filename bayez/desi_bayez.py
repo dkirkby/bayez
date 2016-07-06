@@ -4,8 +4,6 @@ import astropy.table
 import os.path
 import specsim
 import specsim.simulator
-import desimodel
-import desimodel.io
 
 simulator = specsim.simulator.Simulator('DESI')
 # Change
@@ -34,11 +32,11 @@ def read_brick(objtype, path='', bricklist=[], verbose=True):
     fl =[]
     iv = []
     meta =[]
-    for i, camera in enumerate('brz'):
+    for i, camera in enumerate(bricklist):
         try:
             xname = bricklist[i]
         except IndexError:
-            print '3 brick files required!, format=[brickb,brickr,brickz] without extension'
+            print 'brick list required!, format=[brickb,brickr,brickz] or [brickb,brickr] without extension'
 
         name = os.path.join(path, '{0}.fits'.format(bricklist[i]))
         if verbose:
