@@ -1,3 +1,4 @@
+from __future__ import print_function, division
 import numpy as np
 import astropy.io.fits as fits
 import astropy.table
@@ -36,11 +37,10 @@ def read_brick(objtype, path='', bricklist=[], verbose=True):
         try:
             xname = bricklist[i]
         except IndexError:
-            print 'brick list required!, format=[brickb,brickr,brickz] or [brickb,brickr] without extension'
-
+            print('brick list required!, format=[brickb,brickr,brickz] or [brickb,brickr] without extension')
         name = os.path.join(path, '{0}.fits'.format(bricklist[i]))
         if verbose:
-            print 'Reading {0}:'.format(name)
+            print('Reading {0}:'.format(name))
         hdulist = fits.open(name)
         nobj, nwave = hdulist[0].data.shape
         cwave = read_native(hdulist,'WAVELENGTH',np.float32)
@@ -52,55 +52,44 @@ def read_brick(objtype, path='', bricklist=[], verbose=True):
             idlist = hdulist[4].data['TARGETID']
     return  fl, iv, wav, idlist
 
-# CHANGE
-def downsample(fl,iv,wav,analysis_downsampling=4, instrument_downsampling=5, wavestep=0.2):
+def downsample(fl,iv,wav,analysis_downsampling=4):
     import desimodel.io
-    wavemin = desimodel.io.load_throughput('b').wavemin
-    wavemax = desimodel.io.load_throughput('z').wavemax
-    qsim.setWavelengthGrid(wavemin, wavemax, wavestep)
-    wav_temp = np.array(qsim.wavelengthGrid)
-    nobj = len(fl[0])
-    base=0
-    num_analysis_pixels=0
-    start=np.zeros(3)
-    stop =np.zeros(3)
-    for i,camera in enumerate('brz'):
-        j = qsim.instrument.cameraBands.index(camera)
-        throughput_limits = np.where(qsim.cameras[j].throughput > 0)[0][[0,-1]]
-        # Round limits to a multiple of the instrument downsampling so
-        # that all simulation pixels in the included downsampling groups
-        # have non-zero throughput.
-        start[i] = (throughput_limits[0] + instrument_downsampling - 1) // instrument_downsampling
-        stop[i] = throughput_limits[1] // instrument_downsampling
-        band_analysis_pixels = (stop[i] - start[i]) // analysis_downsampling
-        num_analysis_pixels += band_analysis_pixels
+    import specsim.simulator
+    simulator = specsim.simulator.Simulator(config)
     flux = np.empty((nobj,num_analysis_pixels), np.float32)
     ivar = np.empty((nobj,num_analysis_pixels), np.float32)
     wave = np.empty(num_analysis_pixels, np.float32)
-    for i,camera in enumerate('brz'):
-        wstart = wav_temp[start[i]*instrument_downsampling]
-        wstop = wav_temp[stop[i]*instrument_downsampling]
-        start_new = np.where(np.array(wav[i])>wstart)[0][0]
-        stop_new = np.where(np.array(wav[i])>wstop)[0][0]
+    base=0
+    for j, camera_output in enumerate(simulator.camera_output): #band in 'brz':
+        n = simulator.band_sizes[j]
+        # Average the flux over each analysis bin.
+        instrument_wlen = camera_output['wavelength'] # self.results['camflux'][start:stop, j]
+        end = -1 * (instrument_wlen.shape[0] % analysis_downsampling)
+        if end is 0:
+            end = None
+        wstart = instrument_wlen[0]
+        wstop = instrument_wlen[n]
+        start_new = np.where(np.array(wav[j])>wstart)[0][0]
+        stop_new = np.where(np.array(wav[j])>wstop)[0][0]
 
         n = (stop_new - start_new) // analysis_downsampling
         stop_new = start_new + n * analysis_downsampling
         # Average the flux over each analysis bin.
-        instrument_flux = fl[i][:,start_new:stop_new]
+        instrument_flux = fl[j][:,start_new:stop_new]
         flux[:,base:base+n]= np.mean(instrument_flux.reshape(nobj,-1, analysis_downsampling), -1)
         # Sum the inverse variances over each analysis bin.
-        instrument_ivar = iv[i][:,start_new:stop_new]
+        instrument_ivar = iv[j][:,start_new:stop_new]
         ivar[:,base:base+n] = np.sum(instrument_ivar.reshape(nobj,-1, analysis_downsampling), -1)
         # Calculate the central wavelength of each analysis bin the first
         # time we are called.
-        band_wave = wav[i][start_new:stop_new]
+        band_wave = wav[j][start_new:stop_new]
         wave[base:base+n] = np.mean(band_wave.reshape(-1, analysis_downsampling), -1)
         base += n
     return flux, ivar, wave
-# NOT THIS
+
 def estimate_desi(estimator,objtype,path='', bricklist=[]):
     fl, iv, wav,idlist = read_brick(objtype,path,bricklist)
-    flux, ivar, wave = downsample(fl,iv,wav,analysis_downsampling=4,instrument_downsampling=5, wavestep=0.2)
+    flux, ivar, wave = downsample(fl,iv,wav,analysis_downsampling=4)
     results = astropy.table.Table(
         names = ('i', 'z', 'p_best', 't_best', 'z95_lo', 'z68_lo', 'z50', 'z68_hi', 'z95_hi','z_best','zwarn','brickname','type','subtype'),
         dtype = ('i4', 'f4','i4', 'i4','f4', 'f4', 'f4', 'f4', 'f4','f4','i4','a8','a20','a20')
@@ -125,8 +114,6 @@ def estimate_desi(estimator,objtype,path='', bricklist=[]):
         ))
 
     return results
-
-
 
 def write_zbest(results, name='', path='', extrahdu=True):
     col1 = fits.Column(name='BRICKNAME',format='8A', array=results['brickname'])
