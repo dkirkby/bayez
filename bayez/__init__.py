@@ -17,4 +17,4 @@ if not _ASTROPY_SETUP_:
     import prior
     import estimator
     import analysis
-    # import desi_bayez
+    import desi_bayez
